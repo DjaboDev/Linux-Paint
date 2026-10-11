@@ -32,7 +32,7 @@ On Linux, extract the archive and run:
 ```bash
 tar -xzf ClassicPaint-linux-x86_64.tar.gz
 ./ClassicPaint
-
+```
 ## Run from source
 
 Use Python 3.11 and install the project dependencies:
