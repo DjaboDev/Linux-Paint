@@ -14,26 +14,22 @@ A Python clone of classic Microsoft Paint, recreating its familiar interface and
 - Clipboard support, undo and redo, and keyboard shortcuts.
 - Image loading, saving, and printing.
 
-## Installation
+## Download
 
-Standalone builds include Python and the required application dependencies.
+Download the stable version for your platform:
 
-### macOS
+| Platform | Download |
+| --- | --- |
+| macOS — Intel | [Download DMG](release/ClassicPaint-darwin-x86_64.dmg) |
+| Linux — Intel/AMD 64-bit | [Download archive](release/ClassicPaint-linux-x86_64.tar.gz) |
 
-Open `ClassicPaint-darwin-x86_64.dmg`, then drag **ClassicPaint.app** into **Applications**. Launch the application from there.
+On macOS, open the DMG and drag **ClassicPaint.app** into **Applications**.
 
-The `x86_64` build targets Intel Macs. Apple Silicon requires a compatible build or Rosetta 2; native Apple Silicon compatibility has not been established here.
-
-### Linux
-
-Extract the archive and run the executable:
+On Linux, extract the archive and run:
 
 ```bash
 tar -xzf ClassicPaint-linux-x86_64.tar.gz
 ./ClassicPaint
-```
-
-A graphical desktop session and compatible system graphics libraries are required. The `x86_64` build targets 64-bit Intel and AMD processors.
 
 ## Run from source
 
