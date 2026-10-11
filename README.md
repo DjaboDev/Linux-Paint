@@ -16,12 +16,14 @@ A Python clone of classic Microsoft Paint, recreating its familiar interface and
 
 ## Download
 
-Download the stable version for your platform:
+Download the latest stable version from the [Releases page](https://github.com/blankresearch/ClassicPaint/releases/latest).
 
 | Platform | Download |
 | --- | --- |
-| macOS — Intel | [Download DMG](release/ClassicPaint-darwin-x86_64.dmg) |
-| Linux — Intel/AMD 64-bit | [Download archive](release/ClassicPaint-linux-x86_64.tar.gz) |
+| macOS — Intel | [Download DMG](https://github.com/blankresearch/ClassicPaint/releases/latest/download/ClassicPaint-darwin-x86_64.dmg) |
+| Linux — Intel/AMD 64-bit | [Download archive](https://github.com/blankresearch/ClassicPaint/releases/latest/download/ClassicPaint-linux-x86_64.tar.gz) |
+
+[View all releases](https://github.com/blankresearch/ClassicPaint/releases)
 
 On macOS, open the DMG and drag **ClassicPaint.app** into **Applications**.
 
