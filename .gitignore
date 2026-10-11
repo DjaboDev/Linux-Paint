@@ -1,0 +1,40 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build outputs
+build/
+dist/
+release/
+*.spec
+*.egg-info/
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# Logs and crash dumps
+*.log
+core
+core.*
