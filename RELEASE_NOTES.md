@@ -12,3 +12,5 @@ Distribuição exclusivamente Linux x86_64 em tar.gz, AppImage, Flatpak, deb e r
 
 - README fully translated into English; automatic English/Portuguese system-language interface, with English fallback for other locales.
 - Modern font previews, symbolic text-background options, themed combo boxes and scrollbars throughout the editor.
+
+- Remembers window size/maximized state and the last successfully opened folder, with home-directory fallback.

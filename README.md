@@ -58,13 +58,14 @@ The bundle is distributed by this repository; the application is not listed on F
 
 - Unified header with file actions, save, undo/redo, and window controls.
 - Dark mode by default, with a consistent light mode.
+- Window size and maximized state preserved across sessions; placement on Wayland is managed by the desktop compositor.
 - Automatic system language detection: English and Portuguese interfaces; other languages fall back to English. Native desktop dialogs follow the desktop language.
 - Selection, cropping, resizing, rotation, pencil, brushes, eraser, text, shapes, and colors.
 - Round, square, and airbrush tools with distinct previews.
 - Pencil, brush, eraser, and shape widths from 1 to 200 pixels; `[` / `]` adjust width, while `Ctrl +` / `Ctrl -` control zoom.
 - Edge hardness for pencil strokes and geometric shapes, with reversible previews that preserve existing pixels.
 - Rulers, grid, zoom, visible canvas resizing feedback, and undo/redo.
-- Native Linux file chooser starting in the current user's home directory.
+- Native Linux file chooser remembering the last successfully opened folder, with the home directory as its initial/fallback location.
 - Real PNG transparency and a warning before exporting to an opaque format.
 
 ## Background removal

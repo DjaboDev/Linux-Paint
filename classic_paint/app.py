@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QComboBox,
     QVBoxLayout, QWidget, QMenu, QPlainTextEdit, QLineEdit, QWidgetAction)
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 
-from .modern_widgets import FontPreviewDelegate, text_background_icon
+from .modern_widgets import FontPreviewDelegate, text_background_icon, ModernStyle
 from .i18n import tr
 from . import __version__
 from .modern_ui import APP_ID, application_icon, glyph, paint_button, paint_groups, HOME_GROUPS, apply_palette, ResizeOverlay
@@ -1841,11 +1841,7 @@ class PaintWindow(QMainWindow):
 
         settings = QSettings('ClassicPaint', 'ClassicPaint')
         self.dark_mode = settings.value('dark_mode', True, type=bool)
-        geo = settings.value('geometry')
-        if geo:
-            self.restoreGeometry(geo)
-        else:
-            self.resize(1360, 720)
+        self.resize(1360, 720)
         self.setMinimumSize(820, 480)
         self.setAcceptDrops(True)
         self.setMouseTracking(True)
@@ -1929,6 +1925,12 @@ class PaintWindow(QMainWindow):
         self.update_title()
         self.update_dimensions()
         self.update_ribbon_state()
+        # Restore after window flags and layout constraints have been installed.
+        geo=settings.value('geometry')
+        if geo:self.restoreGeometry(geo)
+        maximized=settings.value('window/maximized',self.isMaximized(),type=bool)
+        self.setWindowState(Qt.WindowState.WindowMaximized if maximized else Qt.WindowState.WindowNoState)
+        self.update_window_corners()
 
     def select_tab(self, index):
         self.ribbon.setCurrentIndex(index)
@@ -3116,6 +3118,7 @@ class PaintWindow(QMainWindow):
         self.path, self.dirty = path, False
         self.update_title()
         self.add_recent_file(str(path))
+        QSettings('ClassicPaint','ClassicPaint').setValue('files/open_directory',str(path.parent))
         return True
 
     def dragEnterEvent(self, event):
@@ -3146,10 +3149,15 @@ class PaintWindow(QMainWindow):
                     event.acceptProposedAction()
                     return
 
+    def open_directory(self):
+        saved=QSettings('ClassicPaint','ClassicPaint').value('files/open_directory','')
+        directory=Path(saved) if saved else Path.home()
+        return directory if directory.is_dir() else Path.home()
+
     def open_file(self):
         if not self.confirm_unsaved():
             return
-        path, _ = QFileDialog.getOpenFileName(self, tr('Abrir imagem'), str(Path.home()), 'Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;All files (*)')
+        path, _ = QFileDialog.getOpenFileName(self, tr('Abrir imagem'), str(self.open_directory()), 'Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;All files (*)')
         if not path:
             return
         self.load_file_from_path(path)
@@ -3188,6 +3196,7 @@ class PaintWindow(QMainWindow):
         self.path, self.dirty = path, False
         self.update_title()
         self.add_recent_file(str(path))
+        QSettings('ClassicPaint','ClassicPaint').setValue('files/open_directory',str(path.parent))
         return True
 
     def resize_image(self, scale=True):
@@ -3240,12 +3249,6 @@ class PaintWindow(QMainWindow):
             p.drawImage(QRect(rect.topLeft(), size), image)
             p.end()
 
-    def change_width(self, delta):
-        width=max(1,min(200,self.stroke_width+delta))
-        win=self.window()
-        if hasattr(win,'set_width'):win.set_width(width)
-        else:self.stroke_width=width;self.update_pointer()
-
     def keyPressEvent(self, event):
         if event.matches(QKeySequence.StandardKey.Undo) or (event.key() == Qt.Key.Key_Z and event.modifiers() == Qt.KeyboardModifier.ControlModifier):
             if hasattr(self, 'actions') and self.actions.get('undo') and self.actions['undo'].isEnabled():
@@ -3280,6 +3283,8 @@ class PaintWindow(QMainWindow):
         if self.confirm_unsaved():
             settings = QSettings('ClassicPaint', 'ClassicPaint')
             settings.setValue('geometry', self.saveGeometry())
+            settings.setValue('window/maximized',self.isMaximized())
+            settings.sync()
             event.accept()
         else:
             event.ignore()
@@ -3301,7 +3306,7 @@ def main():
     app.setDesktopFileName(APP_ID)
     app.setWindowIcon(application_icon())
     app.setOrganizationName('Linux Paint Community')
-    app.setStyle('Fusion')
+    app.setStyle(ModernStyle())
     translator=QTranslator(app)
     from PySide6.QtCore import QLocale
     translator.load('qtbase_'+QLocale.system().name(),QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))

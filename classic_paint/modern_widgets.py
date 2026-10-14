@@ -25,3 +25,14 @@ def text_background_icon(opaque,dark):
     font=QFont();font.setPixelSize(13);font.setBold(True);p.setFont(font)
     p.setPen(QColor('#303030' if dark else '#eeeeec') if opaque else fg)
     p.drawText(QRectF(1,1,16,16),Qt.AlignmentFlag.AlignCenter,'A');p.end();return QIcon(pix)
+
+
+from PySide6.QtWidgets import QProxyStyle,QStyle
+class ModernStyle(QProxyStyle):
+    def __init__(self):super().__init__('Fusion')
+    def standardPixmap(self,icon,option=None,widget=None):
+        icons={QStyle.StandardPixmap.SP_MessageBoxInformation:('i','#3584e4'),QStyle.StandardPixmap.SP_MessageBoxQuestion:('?','#3584e4'),QStyle.StandardPixmap.SP_MessageBoxWarning:('!','#c88800'),QStyle.StandardPixmap.SP_MessageBoxCritical:('!','#c01c28')}
+        if icon not in icons:return super().standardPixmap(icon,option,widget)
+        symbol,color=icons[icon];pix=QPixmap(40,40);pix.fill(Qt.GlobalColor.transparent)
+        p=QPainter(pix);p.setRenderHint(QPainter.RenderHint.Antialiasing);p.setPen(QPen(QColor(color),2));p.setBrush(Qt.BrushStyle.NoBrush);p.drawEllipse(QRectF(3,3,34,34))
+        font=QFont();font.setPixelSize(25);font.setBold(True);p.setFont(font);p.drawText(QRectF(3,2,34,34),Qt.AlignmentFlag.AlignCenter,symbol);p.end();return pix
