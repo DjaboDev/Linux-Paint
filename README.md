@@ -12,6 +12,16 @@ A feature-rich, native Python/PySide6 clone of Microsoft Paint with the modern r
 
 This fork introduces extensive bug fixes, quality-of-life enhancements, and native transparent PNG support:
 
+### 🐧 GNOME & Linux Desktop Modernization
+- **Unified GNOME HeaderBar (CSD):** Client-Side Decorations (CSD) with modern window controls (Minimize, Maximize/Restore, Close), document title with dirty state indicator (`*`), hamburger menu (≡), and quick action buttons (Save, Undo, Redo).
+- **Adaptive Window Corners:** Follows GNOME's rounded window corners (12px radius) when floating/restored, switching to square edges (0px) seamlessly when maximized.
+- **Native Dark Mode as Default:** Elegant modern dark theme matching GNOME Adwaita Dark styling, with a one-click toggle to traditional Light Mode in the menu and "Exibir" tab.
+- **Active Brush Visual Indicator:** The "Pincéis" button in the Ribbon now dynamically displays the active brush icon (Round, Square, or Airbrush) with checkmarks inside the dropdown.
+- **Granular Stroke Size Control:** Size menu now includes both standard presets and a precision slider + spinbox (1 to 200 pixels) for fine tool control.
+- **Edge Hardness & Transition (Antialiasing) Slider:** Adjust edge softness/transition from 0% (smooth anti-aliased blend) to 100% (crisp, pixel-exact cut) for Pencil, Eraser, and Brushes.
+- **Eraser Shape Selection:** Choose between Circular (Round) and Square eraser shapes directly in the Size dropdown menu.
+- **Expanded Format Compatibility (WebP):** Native support for reading and saving WebP images with alpha transparency, alongside PNG, JPEG, BMP, and TIFF.
+
 ### 🎨 Transparency & PNG Overhaul
 - **Real-time Checkerboard Canvas:** Transparent areas are visually rendered with a classic alpha checkerboard grid underneath the image.
 - **New Transparent Canvas:** Create new transparent documents using `File -> New (Transparent)` or `Ctrl+Shift+N`.
@@ -37,8 +47,8 @@ This fork introduces extensive bug fixes, quality-of-life enhancements, and nati
 
 ## Features
 
-- Modern Ribbon toolbar inspired by Windows 7 Paint.
-- Pencil, brushes, eraser, flood fill, color picker, text, and shapes.
+- Modern Ribbon toolbar inspired by Windows 7 Paint with unified GNOME HeaderBar.
+- Pencil, brushes (Round, Square, Airbrush), eraser (Round, Square), flood fill, color picker, text, and shapes.
 - Rectangular and free-form selection, moving, cropping, resizing, and rotation.
 - Clipboard support, full undo/redo history, and rich keyboard shortcuts.
 - Image loading, saving (PNG, JPEG, BMP, TIFF, WebP), and printing.
