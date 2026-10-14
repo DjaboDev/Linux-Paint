@@ -54,7 +54,7 @@ def main():
         artifact=releases/(label+'.exe');shutil.copy2(binary,artifact)
     else:
         folder=ROOT/'dist'/'LinuxPaint'
-        shutil.copy2(ROOT/'classic_paint'/'assets'/'linux-paint.png',folder/'linux-paint.png')
+        image.resize((256,256),Image.Resampling.LANCZOS).save(folder/'linux-paint.png')
         shutil.copy2(ROOT/'linux'/'install-packaged.sh',folder/'install.sh');(folder/'install.sh').chmod(0o755)
         shutil.copy2(ROOT/'linux'/'io.github.DjaboDev.LinuxPaint.desktop',folder/'io.github.DjaboDev.LinuxPaint.desktop')
         shutil.copy2(ROOT/'README.md',folder/'README.md');shutil.copy2(ROOT/'THIRD_PARTY_NOTICES.md',folder/'THIRD_PARTY_NOTICES.md')
