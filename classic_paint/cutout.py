@@ -38,11 +38,21 @@ def magic_region(rgb,seed,tolerance,contiguous=True):
 
 def border_alpha(rgba,tolerance=24):
     h,w=rgba.shape[:2]
-    erased=np.zeros((h,w),bool)
+    erased=rgba[:,:,3]==0
+    # An object touching an edge is not automatically background. Infer the
+    # dominant opaque border color before choosing flood-fill seeds.
+    edge=np.concatenate((rgba[0],rgba[-1],rgba[:,0],rgba[:,-1]))
+    opaque=edge[edge[:,3]>0,:3]
+    if not len(opaque):return np.where(erased,0,255).astype(np.uint8)
+    bins=opaque//max(8,int(tolerance)+1)
+    colors,counts=np.unique(bins,axis=0,return_counts=True)
+    dominant=colors[counts.argmax()]
+    background=np.median(opaque[np.all(bins==dominant,axis=1)],axis=0)
     seeds=[(x,0) for x in np.linspace(0,w-1,5,dtype=int)]+[(x,h-1) for x in np.linspace(0,w-1,5,dtype=int)]
     seeds += [(0,y) for y in np.linspace(0,h-1,5,dtype=int)]+[(w-1,y) for y in np.linspace(0,h-1,5,dtype=int)]
     for x,y in seeds:
-        if not erased[y,x]:erased |= magic_region(rgba[:,:,:3],(int(x),int(y)),tolerance)
+        if not erased[y,x] and np.max(np.abs(rgba[y,x,:3].astype(np.int16)-background))<=tolerance:
+            erased |= magic_region(rgba[:,:,:3],(int(x),int(y)),tolerance)
     return np.where(erased,0,255).astype(np.uint8)
 
 def grabcut_alpha(rgba,alpha=None,keep=None,erase=None):

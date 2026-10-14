@@ -1,16 +1,14 @@
-# Linux Paint 0.4.0 — new Linux-only baseline
+# Linux Paint 0.4.1 — modern dialogs and safer background removal
 
-This release restarts the version series at 0.4.0 and incorporates all improvements from the previous releases. Distribution and support now target Linux x86_64 exclusively.
+Linux-only update to the 0.4.0 baseline. Available packages: **tar.gz, AppImage, Flatpak, deb and rpm**, with SHA256 checksums.
 
-Available packages: **tar.gz, AppImage, Flatpak, deb and rpm**, with SHA256 checksums. Flatpak uses the Freedesktop 25.08 runtime and is distributed as a bundle from this repository, not as a Flathub listing.
+- Replaced traditional message boxes with readable modal alerts, internal headings, safe cancellation and clearly distinguished save/discard actions.
+- Unified action-dialog headers for background removal, color editing, resizing and keyboard shortcuts; removed legacy colored button icons.
+- Larger horizontal minus/plus numeric controls retain keyboard editing and respect their limits in both themes.
+- Original-image comparison is read-only. Starting detection returns to the result preview, preventing edits from being hidden behind the original image.
+- Magic selection supports feathering and expansion/contraction without creating permanent erase markings.
+- Border detection samples the dominant border color instead of erasing every object touching the image boundary.
+- Corrected one-pixel correction brushes, true 100% preview after layout changes, excessive checkerboard drawing at high zoom and completed worker cleanup.
+- Release automation safely recognizes an already published version instead of failing on duplicate creation.
 
-- Pencil width now follows the selected value, from 1 to 200 pixels, independently of the previously selected brush.
-- Edge hardness works for pencil strokes (including a 1-pixel tip), airbrush intensity, lines and geometric shapes. Soft shape previews preserve the existing canvas and remain undoable.
-- Right-click shape drawing correctly swaps outline and fill colors.
-- Width shortcuts [ and ] update the ribbon controls; Ctrl + and Ctrl - remain zoom shortcuts.
-- Modern font previews, symbolic text-background options and message icons, themed combo boxes, fields, menus and scrollbars.
-- Automatic English/Portuguese system-language interface, with English fallback for other locales. README fully translated into English.
-- Window size and maximized state restored after interface setup, and the last successfully opened folder remembered, with home-directory fallback.
-- Previous features retained: custom app icon and desktop identity, unified header, compact ribbon, consistent light/dark modes, native file chooser, readable controls, resize feedback and local background removal with magic selection, AI, GrabCut and manual corrections.
-
-29 regression tests cover drawing, width, hardness, all shapes, canvas boundaries, language/menu behavior, persistence, transparency, cancellation and undo/redo. Each package is checked by launching its executable payload; Flatpak is additionally launched inside its sandbox.
+42 regression tests cover drawing, persistence, localization, dialogs and cutout behavior, including original comparison before/after detection, magic selection, manual corrections, refinement, undo/reset, transparency, zoom, failures and cancellation. The cached local ONNX model was additionally exercised on a real app-icon image with an opaque background. These checks do not guarantee a perfect cutout for every photograph; review the preview and use keep/remove corrections as needed.
