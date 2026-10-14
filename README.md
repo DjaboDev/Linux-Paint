@@ -84,18 +84,26 @@ python paint.py /path/to/image.png
 
 ## Desktop Integration on Linux
 
-To integrate Linux Paint with your desktop application menu:
+To install the source checkout for your current Linux user, first install the requirements in a virtual environment, then run with that environment's Python:
 
-1. Copy the icons to your user icons directory:
 ```bash
-mkdir -p ~/.local/share/icons/hicolor/scalable/apps ~/.local/share/icons/hicolor/256x256/apps
-cp classic-paint.svg ~/.local/share/icons/hicolor/scalable/apps/classic-paint.svg
-cp classic-paint-256.png ~/.local/share/icons/hicolor/256x256/apps/classic-paint.png
+python install_linux.py
 ```
 
-2. Create a desktop launcher at `~/.local/share/applications/classic-paint.desktop`.
+The installer uses that Python interpreter, copies the app to `~/.local/share/LinuxPaint`, and creates `~/.local/bin/linux-paint`. Keep the virtual environment at its original location. It installs the approved violet/crimson/blue icon and the `io.github.DjaboDev.LinuxPaint.desktop` launcher. The legacy `classic-paint` command continues to work. An existing legacy launcher is backed up and hidden; an existing GNOME favorite is migrated to the new launcher ID.
 
----
+The application uses the same desktop ID on Wayland and `LinuxPaint` as its X11 WM class. This allows GNOME to associate the running window with its launcher instead of displaying a generic gear icon.
+
+### Modern ribbon validation
+
+The header and ribbon use original symbolic artwork instead of a recolored screenshot of the Windows interface. The Home ribbon keeps a fixed content width of 1263 px, leaving the remaining area free on QHD displays. Dark mode is the default for new settings; a user's existing theme choice is preserved. Both light and dark styles remain available.
+
+```bash
+python smoke.py
+python check_ui.py
+```
+
+`check_ui.py` exercises drawing, header undo/redo, colors, shapes, themes, tabs and small/QHD layouts with isolated settings, then renders the actual Qt interface to `screenshots/linux-paint-modern-qhd.png`. A rendered mockup is not a GTK application: Linux Paint retains PySide6/Qt and follows the approved GNOME visual direction.
 
 ## Attribution & License
 
