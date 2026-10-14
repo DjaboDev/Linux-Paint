@@ -1,5 +1,5 @@
 """Clean font previews and symbolic text options, independent of platform icons."""
-from PySide6.QtCore import Qt,QRectF,QSize
+from PySide6.QtCore import Qt,QRectF,QSize,QObject,QEvent
 from PySide6.QtGui import QFont,QPainter,QPen,QColor,QPixmap,QIcon,QPalette
 from PySide6.QtWidgets import (QStyledItemDelegate, QDialog, QMessageBox,
     QSpinBox, QAbstractSpinBox, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -7,15 +7,16 @@ from PySide6.QtWidgets import (QStyledItemDelegate, QDialog, QMessageBox,
 from .i18n import tr
 
 
-class ModernSpinBox(QSpinBox):
-    """Readable horizontal steppers, preserving Qt's numeric/keyboard behavior."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        self.setMinimumSize(124, 36)
-        self.setProperty('modernSpin', True)
-        self.decrease = QToolButton(self)
-        self.increase = QToolButton(self)
+class NumericSteppers(QObject):
+    """Shared steppers for application fields and Qt's built-in color fields."""
+    def __init__(self, spin):
+        super().__init__(spin)
+        self.spin = spin
+        spin.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
+        spin.setMinimumSize(124, 36)
+        spin.setProperty('modernSpin', True)
+        self.decrease = QToolButton(spin)
+        self.increase = QToolButton(spin)
         for button, text, step, label in (
                 (self.decrease, '−', -1, tr('Diminuir valor')),
                 (self.increase, '+', 1, tr('Aumentar valor'))):
@@ -25,23 +26,30 @@ class ModernSpinBox(QSpinBox):
             button.setObjectName('NumericStepper')
             button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             button.setAutoRepeat(True)
-            button.clicked.connect(lambda checked=False, s=step: self.stepBy(s))
-        self.valueChanged.connect(self.update_steps)
+            button.clicked.connect(lambda checked=False, s=step: spin.stepBy(s))
+        spin.valueChanged.connect(self.update_steps)
+        spin.installEventFilter(self)
 
     def update_steps(self, *args):
-        steps = self.stepEnabled()
+        steps = self.spin.stepEnabled()
         self.decrease.setEnabled(bool(steps & QAbstractSpinBox.StepEnabledFlag.StepDownEnabled))
         self.increase.setEnabled(bool(steps & QAbstractSpinBox.StepEnabledFlag.StepUpEnabled))
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.decrease.setGeometry(self.width()-60, 3, 28, self.height()-6)
-        self.increase.setGeometry(self.width()-31, 3, 28, self.height()-6)
-        self.update_steps()
+    def eventFilter(self, watched, event):
+        if event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            self.decrease.setGeometry(self.spin.width()-60, 3, 28, self.spin.height()-6)
+            self.increase.setGeometry(self.spin.width()-31, 3, 28, self.spin.height()-6)
+            self.update_steps()
+        return False
 
-    def showEvent(self, event):
-        super().showEvent(event)
-        self.update_steps()
+
+class ModernSpinBox(QSpinBox):
+    """Readable horizontal steppers, preserving Qt's numeric/keyboard behavior."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.steppers = NumericSteppers(self)
+        self.decrease = self.steppers.decrease
+        self.increase = self.steppers.increase
 
 
 class ModernDialog(QDialog):
@@ -104,6 +112,7 @@ class ModernDialog(QDialog):
 class ModernColorDialog(QColorDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.steppers = [NumericSteppers(spin) for spin in self.findChildren(QSpinBox)]
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         self.setObjectName('ModernDialog')
         self._header_added = False

@@ -108,6 +108,20 @@ class DialogTests(unittest.TestCase):
         self.assertFalse(spin.increase.isEnabled())
         spin.close()
 
+    def test_color_dialog_numeric_controls_preserve_color_and_alpha(self):
+        from classic_paint.modern_widgets import ModernColorDialog
+        from PySide6.QtWidgets import QAbstractSpinBox
+        from PySide6.QtGui import QColor
+        dialog=ModernColorDialog(self.w)
+        dialog.setOption(QColorDialog.ColorDialogOption.ShowAlphaChannel)
+        dialog.setCurrentColor(QColor(90,40,130,75));dialog.show();APP.processEvents()
+        self.assertGreaterEqual(len(dialog.steppers),6)
+        for stepper in dialog.steppers:
+            self.assertEqual(stepper.spin.buttonSymbols(),QAbstractSpinBox.ButtonSymbols.NoButtons)
+            self.assertGreaterEqual(stepper.increase.height(),28)
+        self.assertEqual(dialog.currentColor().getRgb(),(90,40,130,75))
+        dialog.reject()
+
     def test_distinct_brush_previews_and_eraser_options(self):
         seen=[]
         for style in ('Round','Square','Airbrush'):
