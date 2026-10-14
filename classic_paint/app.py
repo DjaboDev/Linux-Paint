@@ -2576,7 +2576,7 @@ class PaintWindow(QMainWindow):
         eraser.setToolTip(tr('Borracha — seta: formato; botão direito: opções'))
         eraser_menu=QMenu(eraser)
         for name,label in (('round','Redonda'),('square','Quadrada')):
-            a=eraser_menu.addAction(label);a.setCheckable(True);a.setChecked(name==self.canvas.eraser_shape)
+            a=eraser_menu.addAction(tr(label));a.setCheckable(True);a.setChecked(name==self.canvas.eraser_shape)
             a.triggered.connect(lambda checked=False,n=name:self.set_eraser_shape(n))
         eraser.setMenu(eraser_menu);eraser.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         eraser.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -2607,12 +2607,12 @@ class PaintWindow(QMainWindow):
         self.fill_button=button('fill',(614,26,85,27),'Fill',default_enabled=False)
         self.outline_menu=QMenu(self.outline_button)
         for label,style in (('No outline',None),('Solid line',Qt.PenStyle.SolidLine),('Dotted line',Qt.PenStyle.DotLine),('Dashed line',Qt.PenStyle.DashLine),('Dash-dot line',Qt.PenStyle.DashDotLine)):
-            a=self.outline_menu.addAction(label);a.setCheckable(True);a.setChecked(style==Qt.PenStyle.SolidLine)
+            a=self.outline_menu.addAction(tr(label));a.setCheckable(True);a.setChecked(style==Qt.PenStyle.SolidLine)
             a.triggered.connect(lambda checked=False,v=style:self.set_outline_style(v))
         self.outline_button.setMenu(self.outline_menu);self.outline_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.fill_menu=QMenu(self.fill_button)
         for label,value in (('No fill',False),('Solid color',True)):
-            a=self.fill_menu.addAction(label);a.setCheckable(True)
+            a=self.fill_menu.addAction(tr(label));a.setCheckable(True)
             a.triggered.connect(lambda checked=False,v=value:self.set_fill_style(v))
         self.fill_button.setMenu(self.fill_menu);self.fill_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.size_button=button('size',(705,0,52,81),'Size');menu=QMenu(self.size_button)
@@ -2720,7 +2720,7 @@ class PaintWindow(QMainWindow):
         header('Selection shapes')
         self.selection_shape_actions={}
         for mode,label in (('rect','&Rectangular selection'),('free','&Free-form selection')):
-            a=menu.addAction(label);a.triggered.connect(lambda checked=False,m=mode:self.set_selection_mode(m))
+            a=menu.addAction(tr(label));a.triggered.connect(lambda checked=False,m=mode:self.set_selection_mode(m))
             self.selection_shape_actions[mode]=a
         header('Selection options')
         menu.addAction(self.actions['select_all']);menu.addAction(self.actions['invert_selection'])
