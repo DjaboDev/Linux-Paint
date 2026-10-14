@@ -33,6 +33,35 @@ class DialogTests(unittest.TestCase):
             self.assertGreater(dialog.palette().color(QPalette.ColorRole.Text).lightness(),150)
         self.w.set_dark_mode(False)
         self.assertGreater(QColorDialog(self.w).palette().color(QPalette.ColorRole.Window).lightness(),200)
+    def test_theme_switch_repaints_every_ribbon_page(self):
+        self.w.resize(1800,900)
+        for dark in (False,True,False):
+            self.w.set_dark_mode(dark)
+            for tab in range(3):
+                self.w.select_tab(tab);APP.processEvents()
+                image=self.w.ribbon.grab().toImage()
+                surface=image.pixelColor(image.width()-20,30).lightness()
+                self.assertLess(surface,80) if dark else self.assertGreater(surface,210)
+                text=self.w.rulers_checkbox.palette().color(QPalette.ColorRole.WindowText).lightness()
+                self.assertGreater(text,180) if dark else self.assertLess(text,80)
+
+    def test_open_starts_at_current_user_home(self):
+        from pathlib import Path
+        from unittest.mock import patch
+        with patch('classic_paint.app.QFileDialog.getOpenFileName',return_value=('', '')) as chooser:
+            self.w.open_file()
+        self.assertEqual(chooser.call_args.args[2],str(Path.home()))
+
+    def test_size_arrows_change_value_in_both_themes(self):
+        for dark in (True,False):
+            self.w.set_dark_mode(dark);self.w.set_width(12)
+            spin=self.w.size_spinbox;spin.window().show();APP.processEvents()
+            QTest.mouseClick(spin,Qt.MouseButton.LeftButton,pos=QPoint(spin.width()-10,6))
+            self.assertEqual(spin.value(),13)
+            QTest.mouseClick(spin,Qt.MouseButton.LeftButton,pos=QPoint(spin.width()-10,spin.height()-6))
+            self.assertEqual(spin.value(),12)
+            spin.window().hide()
+
     def test_distinct_brush_previews_and_eraser_options(self):
         seen=[]
         for style in ('Round','Square','Airbrush'):

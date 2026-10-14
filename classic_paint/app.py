@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QComboBox,
     QVBoxLayout, QWidget, QMenu, QPlainTextEdit, QLineEdit, QWidgetAction)
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 
+from . import __version__
 from .modern_ui import APP_ID, application_icon, glyph, paint_button, paint_groups, HOME_GROUPS, apply_palette, ResizeOverlay
 
 MAX_PIXELS = 32_000_000
@@ -1343,9 +1344,9 @@ class Ruler(QWidget):
     def paintEvent(self,event):
         p=QPainter(self)
         dark = getattr(self.window(), 'dark_mode', True) if self.window() else True
-        bg_col = QColor('#242424') if dark else QColor('#edf1fa')
-        border_col = QColor('#383838') if dark else QColor('#a3adbd')
-        text_col = QColor('#9a9996') if dark else QColor('#7a859a')
+        bg_col = QColor('#242424') if dark else QColor('#ededed')
+        border_col = QColor('#383838') if dark else QColor('#b9b9b9')
+        text_col = QColor('#9a9996') if dark else QColor('#666666')
         pointer_col = QColor('#3584e4') if dark else QColor('#db6565')
         p.fillRect(self.rect(), bg_col)
         p.setPen(border_col);p.drawRect(self.rect().adjusted(0,0,-1,-1))
@@ -1405,7 +1406,7 @@ class Workspace(QScrollArea):
         if dark:
             self.setStyleSheet('QScrollArea {border:0;background:#1d1d1d;} QScrollBar {background:#1e1e1e;}')
         else:
-            self.setStyleSheet('QScrollArea {border:0;background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #c5cfdf,stop:1 #dee7f4);} QScrollBar {background:#e9edf3;}')
+            self.setStyleSheet('QScrollArea {border:0;background:#dedede;} QScrollBar {background:#ededed;}')
         if hasattr(self, 'horizontal'):
             self.horizontal.update()
             self.vertical.update()
@@ -1484,9 +1485,15 @@ class RibbonScrollArea(QScrollArea):
         self.setFrameShape(QFrame.Shape.NoFrame);self.setWidgetResizable(True)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.setStyleSheet("QScrollArea {background:#282828;} QScrollBar:horizontal {background:#e4edf9;height:12px;} QScrollBar::handle:horizontal {background:#a9bed7;min-width:20px;} QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal {width:0;}")
-        self.viewport().setStyleSheet('background:#282828;')
         self.setWidget(ribbon);self.setFixedHeight(ribbon.height())
+        self.apply_theme(True)
+
+    def apply_theme(self, dark):
+        surface='#282828' if dark else '#f0f0f0'
+        track='#202020' if dark else '#e4e4e4'
+        handle='#656565' if dark else '#a0a0a0'
+        self.setStyleSheet(f"QScrollArea {{background:{surface};}} QScrollBar:horizontal {{background:{track};height:12px;}} QScrollBar::handle:horizontal {{background:{handle};min-width:20px;}} QScrollBar::add-line:horizontal,QScrollBar::sub-line:horizontal {{width:0;}}")
+        self.viewport().setStyleSheet(f'background:{surface};')
 
     def resizeEvent(self,event):
         super().resizeEvent(event)
@@ -1999,8 +2006,10 @@ class PaintWindow(QMainWindow):
             self.header_bar.update_icons()
         if hasattr(self, 'scroll'):
             self.scroll.apply_theme(enabled)
-        if hasattr(self, 'home_page'):
-            self.home_page.update()
+        if hasattr(self, 'ribbon_scroll'):
+            self.ribbon_scroll.apply_theme(enabled)
+            for index in range(self.ribbon.count()):
+                self.ribbon.widget(index).update()
         self.update()
 
     def apply_theme_stylesheet(self):
@@ -2259,7 +2268,7 @@ class PaintWindow(QMainWindow):
                     background: #ffffff;
                 }
                 QStackedWidget {
-                    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #f4f8fd,stop:1 #dae5f4);
+                    background: #f0f0f0;
                     border-bottom: 1px solid #9babc0;
                 }
                 QStatusBar {
@@ -2274,12 +2283,12 @@ class PaintWindow(QMainWindow):
                     background: transparent;
                 }
                 QToolButton:hover, QPushButton:hover {
-                    border-color: #e9bf62;
-                    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #fff7df,stop:1 #ffe6a1);
+                    border-color: #c7c7c7;
+                    background: #e3e3e3;
                 }
                 QToolButton:checked, QPushButton:checked {
-                    border-color: #d9a33a;
-                    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #fff2c8,stop:1 #ffd77a);
+                    border-color: #3584e4;
+                    background: #d3e5fa;
                 }
                 QToolButton::menu-button {
                     background: transparent;
@@ -2341,7 +2350,29 @@ class PaintWindow(QMainWindow):
                     spacing: 6px;
                 }
             """)
-
+        self.ribbon_scroll.apply_theme(dark)
+        separator='#444444' if dark else '#cecece'
+        caption='#aaaaaa' if dark else '#666666'
+        self.setStyleSheet(self.styleSheet()+f'''
+            QFrame#RibbonGroup {{border-right:1px solid {separator};background:transparent;}}
+            QLabel#RibbonCaption {{color:{caption};border:0;font-size:11px;background:transparent;}}
+        ''')
+        theme='dark' if dark else 'light'
+        asset_dir=Path(__file__).parent/'assets'
+        up=(asset_dir/f'spin-up-{theme}.svg').as_posix()
+        down=(asset_dir/f'spin-down-{theme}.svg').as_posix()
+        border='#505050' if dark else '#c7c7c7'
+        surface='#353535' if dark else '#e4e4e4'
+        hover='#484848' if dark else '#d4d4d4'
+        self.setStyleSheet(self.styleSheet()+f"""
+            QSpinBox {{padding-right:24px; min-height:24px;}}
+            QSpinBox::up-button {{subcontrol-origin:border; subcontrol-position:top right; width:22px; height:13px; border-left:1px solid {border}; background:{surface}; border-top-right-radius:4px;}}
+            QSpinBox::down-button {{subcontrol-origin:border; subcontrol-position:bottom right; width:22px; height:13px; border-left:1px solid {border}; border-top:1px solid {border}; background:{surface}; border-bottom-right-radius:4px;}}
+            QSpinBox::up-button:hover, QSpinBox::down-button:hover {{background:{hover};}}
+            QSpinBox::up-button:pressed, QSpinBox::down-button:pressed {{background:#3584e4;}}
+            QSpinBox::up-arrow {{image:url("{up}"); width:10px; height:6px;}}
+            QSpinBox::down-arrow {{image:url("{down}"); width:10px; height:6px;}}
+        """)
 
     def action(self, key, text, callback, shortcut=None, menu=None):
         action = QAction(text, self)
@@ -2393,7 +2424,7 @@ class PaintWindow(QMainWindow):
         self.action('clear_transparent', 'Clear to transparent', lambda: self.canvas.set_image(blank(self.canvas.image.width(), self.canvas.image.height(), QColor(0,0,0,0))), 'Ctrl+Alt+Delete', image)
         help_menu = self.menuBar().addMenu('Help')
         self.action('about', 'Sobre o Linux Paint', lambda: QMessageBox.about(self, 'Linux Paint',
-            '<b>Linux Paint 0.4.0</b><br>'
+            f'<b>Linux Paint {__version__}</b><br>'
             'Editor gráfico com visual moderno e integração com o GNOME / Linux.<br><br>'
             '<b>Desenvolvimento e melhorias:</b> <a href="https://github.com/DjaboDev/Linux-Paint">DjaboDev/Linux-Paint</a><br>'
             '<b>Baseado em:</b> Classic Paint por <a href="https://github.com/blankresearch/ClassicPaint">blankresearch</a><br><br>'
@@ -2456,11 +2487,11 @@ class PaintWindow(QMainWindow):
         self.canvas.set_zoom(max(25,min(800,percentage)))
 
     def group(self,layout,title):
-        frame=QFrame();frame.setStyleSheet('QFrame {border-right:1px solid #b6c6dc;background:transparent;}')
+        frame=QFrame();frame.setObjectName('RibbonGroup')
         outer=QVBoxLayout(frame);outer.setContentsMargins(6,4,6,2);outer.setSpacing(2)
         body=QHBoxLayout();body.setSpacing(4);body.setContentsMargins(0,0,0,0);outer.addLayout(body,1)
         label=QLabel(title);label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setStyleSheet('color:#73859e;border:0;font-size:11px;');outer.addWidget(label)
+        label.setObjectName('RibbonCaption');outer.addWidget(label)
         layout.addWidget(frame);return body
 
 
@@ -2568,7 +2599,7 @@ class PaintWindow(QMainWindow):
         self.size_slider = QSlider(Qt.Orientation.Horizontal)
         self.size_slider.setRange(1, 200);self.size_slider.setValue(self.canvas.stroke_width)
         self.size_spinbox = QSpinBox()
-        self.size_spinbox.setRange(1, 200);self.size_spinbox.setValue(self.canvas.stroke_width);self.size_spinbox.setFixedWidth(56)
+        self.size_spinbox.setRange(1, 200);self.size_spinbox.setValue(self.canvas.stroke_width);self.size_spinbox.setFixedWidth(78)
         size_row.addWidget(self.size_slider);size_row.addWidget(self.size_spinbox)
         custom_layout.addLayout(size_row)
         def on_slider_change(val):
@@ -2673,7 +2704,7 @@ class PaintWindow(QMainWindow):
         self.canvas.invert_selection();self.update_ribbon_state()
 
     def paste_from(self):
-        filename,_=QFileDialog.getOpenFileName(self,'Paste from','','Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp)')
+        filename,_=QFileDialog.getOpenFileName(self,'Colar de uma imagem',str(Path.home()),'Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp)')
         if filename:
             reader=QImageReader(filename);reader.setAutoTransform(True);size=reader.size()
             if size.isValid() and size.width()*size.height()>MAX_PIXELS:return
@@ -3080,7 +3111,7 @@ class PaintWindow(QMainWindow):
     def open_file(self):
         if not self.confirm_unsaved():
             return
-        path, _ = QFileDialog.getOpenFileName(self, 'Open image', '', 'Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;All files (*)')
+        path, _ = QFileDialog.getOpenFileName(self, 'Abrir imagem', str(Path.home()), 'Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;All files (*)')
         if not path:
             return
         self.load_file_from_path(path)
@@ -3216,7 +3247,10 @@ def main():
     os.environ.setdefault("RESOURCE_NAME", "LinuxPaint")
     if sys.platform.startswith("linux") and os.environ.get("XDG_SESSION_TYPE") == "wayland":
         os.environ.setdefault("QT_QPA_PLATFORM", "wayland;xcb")
-    QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)
+    # Let the desktop provide its file chooser (sidebar, bookmarks and previews).
+    # QColorDialog opts out individually so its custom controls follow our theme.
+    if sys.platform.startswith('linux'):
+        os.environ.setdefault('QT_QPA_PLATFORMTHEME', 'xdgdesktopportal')
     app = QApplication(sys.argv)
     app.setApplicationName('LinuxPaint')
     app.setApplicationDisplayName('Linux Paint')
