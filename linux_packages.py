@@ -114,7 +114,7 @@ def flatpak_package(root,folder,releases,label):
     package=releases/(label+'.flatpak')
     run('flatpak','build-bundle',repo,package,APP_ID,'stable','--runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo')
     run('flatpak','--user','install','--noninteractive','-y',package)
-    run('flatpak','run','--env=QT_QPA_PLATFORM=offscreen',APP_ID,'--self-test')
+    run('dbus-run-session','--','flatpak','run','--env=QT_QPA_PLATFORM=offscreen',APP_ID,'--self-test')
     checksum(package)
     return package
 

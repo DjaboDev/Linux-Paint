@@ -79,7 +79,7 @@ def glyph(painter, key, rect, color):
     svg=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" color="{color}" stroke="{color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">{body}</g></svg>'
     QSvgRenderer(svg.encode()).render(painter, rect)
 
-LABELS={'paste':'Colar','cut':'Recortar','copy':'Copiar','select':'Selecionar','crop':'Recortar','resize':'Redimensionar','rotate':'Girar','brush':'','outline':'Contorno','fill':'Preenchimento','size':'','color1':'Cor 1','color2':'Cor 2','colors':'Editar\ncores','background':'Remover\nfundo'}
+LABELS={'paste':'Colar','cut':'Recortar','copy':'Copiar','select':'Selecionar','crop':'Crop','resize':'Redimensionar','rotate':'Girar','brush':'','outline':'Contorno','fill':'Preenchimento','size':'','color1':'Cor 1','color2':'Cor 2','colors':'Editar\ncores','background':'Remover\nfundo'}
 
 def paint_button(button):
     p=QPainter(button); p.setRenderHint(QPainter.RenderHint.Antialiasing)
