@@ -1,3 +1,4 @@
+from .i18n import tr
 """Preview-first local cutout editor with explicit keep/remove correction tools."""
 import numpy as np
 import cv2
@@ -93,23 +94,23 @@ class CutoutView(QWidget):
 class BackgroundDialog(QDialog):
     def __init__(self,image,parent=None):
         super().__init__(parent)
-        self.setWindowTitle('Remover fundo');self.resize(1100,760)
+        self.setWindowTitle(tr('Remover fundo'));self.resize(1100,760)
         self.dark=getattr(parent,'dark_mode',True)
         self.rgba=rgba_from_image(image);h,w=self.rgba.shape[:2]
         self.alpha=np.full((h,w),255,np.uint8);self.keep=np.zeros((h,w),np.uint8);self.erase=self.keep.copy()
         self.history=[];self.history_bytes=0;self.worker=None;self._closing=False
         self.background='checker';self.preview_zoom=1.;self.output=None
         layout=QVBoxLayout(self);layout.setContentsMargins(16,16,16,16);layout.setSpacing(10)
-        self.notice=QLabel('1. Detecte o fundo ou clique nele com a seleção mágica.  2. Corrija com Manter / Apagar.  3. Revise e aplique.')
+        self.notice=QLabel(tr('1. Detecte o fundo ou clique nele com a seleção mágica.  2. Corrija com Manter / Apagar.  3. Revise e aplique.'))
         self.notice.setWordWrap(True);layout.addWidget(self.notice)
         actions=QHBoxLayout();layout.addLayout(actions)
-        self.auto=QPushButton('Detectar pelas bordas');actions.addWidget(self.auto)
-        self.ai=QPushButton('Detectar com IA' if model_path().exists() else 'Baixar modelo IA');actions.addWidget(self.ai)
-        self.refine=QPushButton('Refinar com marcações');actions.addWidget(self.refine)
-        self.undo=QPushButton('Desfazer ajuste');actions.addWidget(self.undo)
-        self.reset=QPushButton('Recomeçar');actions.addWidget(self.reset)
+        self.auto=QPushButton(tr('Detectar pelas bordas'));actions.addWidget(self.auto)
+        self.ai=QPushButton(tr('Detectar com IA' if model_path().exists() else 'Baixar modelo IA'));actions.addWidget(self.ai)
+        self.refine=QPushButton(tr('Refinar com marcações'));actions.addWidget(self.refine)
+        self.undo=QPushButton(tr('Desfazer ajuste'));actions.addWidget(self.undo)
+        self.reset=QPushButton(tr('Recomeçar'));actions.addWidget(self.reset)
         actions.addStretch()
-        self.original_view=QCheckBox('Ver original');actions.addWidget(self.original_view)
+        self.original_view=QCheckBox(tr('Ver original'));actions.addWidget(self.original_view)
         self.auto.clicked.connect(self.detect_border)
         self.ai.clicked.connect(self.detect_ai)
         self.refine.clicked.connect(self.refine_marked)
@@ -117,32 +118,32 @@ class BackgroundDialog(QDialog):
         tools=QHBoxLayout();layout.addLayout(tools)
         self.group=QButtonGroup(self);self.group.setExclusive(True)
         for mode,label in [('magic','Seleção mágica'),('keep','Manter'),('erase','Apagar')]:
-            b=QToolButton();b.setText(label);b.setCheckable(True);b.setChecked(mode=='magic');self.group.addButton(b)
+            b=QToolButton();b.setText(tr(label));b.setCheckable(True);b.setChecked(mode=='magic');self.group.addButton(b)
             b.clicked.connect(lambda checked=False,m=mode:self.set_mode(m));tools.addWidget(b)
-        tools.addSpacing(12);tools.addWidget(QLabel('Tolerância'))
+        tools.addSpacing(12);tools.addWidget(QLabel(tr('Tolerância')))
         self.tolerance=QSpinBox();self.tolerance.setRange(0,120);self.tolerance.setValue(24);tools.addWidget(self.tolerance)
-        self.contiguous=QCheckBox('Área conectada');self.contiguous.setChecked(True);tools.addWidget(self.contiguous)
-        tools.addSpacing(12);tools.addWidget(QLabel('Pincel (px)'))
+        self.contiguous=QCheckBox(tr('Área conectada'));self.contiguous.setChecked(True);tools.addWidget(self.contiguous)
+        tools.addSpacing(12);tools.addWidget(QLabel(tr('Pincel (px)')))
         self.brush=QSpinBox();self.brush.setRange(1,500);self.brush.setValue(30);tools.addWidget(self.brush)
-        tools.addStretch();self.show_marks=QCheckBox('Mostrar marcações');self.show_marks.setChecked(True);tools.addWidget(self.show_marks)
+        tools.addStretch();self.show_marks=QCheckBox(tr('Mostrar marcações'));self.show_marks.setChecked(True);tools.addWidget(self.show_marks)
         self.view=CutoutView(self);layout.addWidget(self.view,1)
         self.view.magic_clicked.connect(self.magic);self.view.stroke_started.connect(self.snapshot);self.view.stroke.connect(self.paint_mark)
         self.original_view.toggled.connect(lambda _:self.view.update());self.show_marks.toggled.connect(lambda _:self.view.update())
         bottom=QHBoxLayout();layout.addLayout(bottom)
         for bg,label in [('checker','Transparência'),('#ffffff','Branco'),('#181818','Escuro')]:
-            b=QPushButton(label);b.clicked.connect(lambda checked=False,c=bg:self.set_background(c));bottom.addWidget(b)
-        zoom=QPushButton('Zoom 100% / Ajustar');zoom.clicked.connect(self.toggle_zoom);bottom.addWidget(zoom)
-        self.halo=QCheckBox('Reduzir halo');self.halo.setChecked(True);bottom.addWidget(self.halo)
-        bottom.addStretch();bottom.addWidget(QLabel('Suavizar borda'))
+            b=QPushButton(tr(label));b.clicked.connect(lambda checked=False,c=bg:self.set_background(c));bottom.addWidget(b)
+        zoom=QPushButton(tr('Zoom 100% / Ajustar'));zoom.clicked.connect(self.toggle_zoom);bottom.addWidget(zoom)
+        self.halo=QCheckBox(tr('Reduzir halo'));self.halo.setChecked(True);bottom.addWidget(self.halo)
+        bottom.addStretch();bottom.addWidget(QLabel(tr('Suavizar borda')))
         self.feather=QSpinBox();self.feather.setRange(0,20);self.feather.setSuffix(' px');bottom.addWidget(self.feather)
-        bottom.addWidget(QLabel('Expandir / retrair'))
+        bottom.addWidget(QLabel(tr('Expandir / retrair')))
         self.shift=QSpinBox();self.shift.setRange(-20,20);self.shift.setSuffix(' px');bottom.addWidget(self.shift)
         self.feather.valueChanged.connect(self.refresh);self.shift.valueChanged.connect(self.refresh);self.halo.toggled.connect(self.refresh)
-        self.status=QLabel('A imagem original só será alterada ao clicar em Aplicar.');self.status.setWordWrap(True);layout.addWidget(self.status)
+        self.status=QLabel(tr('A imagem original só será alterada ao clicar em Aplicar.'));self.status.setWordWrap(True);layout.addWidget(self.status)
         self.progress=QProgressBar();self.progress.hide();layout.addWidget(self.progress)
         self.buttons=QDialogButtonBox(QDialogButtonBox.StandardButton.Ok|QDialogButtonBox.StandardButton.Cancel)
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText('Aplicar recorte')
-        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText('Cancelar')
+        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText(tr('Aplicar recorte'))
+        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(tr('Cancelar'))
         self.buttons.accepted.connect(self.accept);self.buttons.rejected.connect(self.reject);layout.addWidget(self.buttons)
         self.refresh()
 
@@ -187,7 +188,7 @@ class BackgroundDialog(QDialog):
 
     def detect_ai(self):
         if not model_path().exists():
-            self.status.setText('Baixando modelo local (~220 MB). Depois do download, suas imagens são processadas neste computador.')
+            self.status.setText(tr('Baixando modelo local (~220 MB). Depois do download, suas imagens são processadas neste computador.'))
             self.start_job(lambda progress,cancel:('model',download_model(progress,cancel)),download=True)
         else:self.start_job(lambda progress,cancel:ai_alpha(self.rgba))
 
@@ -196,7 +197,7 @@ class BackgroundDialog(QDialog):
         self.set_busy(True);self.worker=SegmentationJob(function,self)
         self.worker.result.connect(self.job_result);self.worker.failed.connect(self.job_error)
         self.worker.progress.connect(self.job_progress);self.worker.finished.connect(self.job_finished)
-        if not download:self.status.setText('Processando localmente… você pode cancelar sem alterar a imagem.')
+        if not download:self.status.setText(tr('Processando localmente… você pode cancelar sem alterar a imagem.'))
         self.worker.start()
 
     def set_busy(self,busy):
@@ -210,15 +211,15 @@ class BackgroundDialog(QDialog):
     def job_result(self,value):
         if self._closing:return
         if isinstance(value,tuple) and value[0]=='model':
-            self.ai.setText('Detectar com IA');self.status.setText('Modelo pronto. Clique em Detectar com IA para criar a prévia.');return
+            self.ai.setText(tr('Detectar com IA'));self.status.setText(tr('Modelo pronto. Clique em Detectar com IA para criar a prévia.'));return
         self.snapshot()
         if isinstance(value,tuple):
             region=value[1];self.alpha[region]=0;self.erase[region & (self.keep==0)]=255
         else:self.alpha=value
-        self.refresh();self.status.setText('Prévia pronta. Confira em fundo branco e escuro; marque Manter / Apagar para corrigir e use Refinar.')
+        self.refresh();self.status.setText(tr('Prévia pronta. Confira em fundo branco e escuro; marque Manter / Apagar para corrigir e use Refinar.'))
 
     def job_error(self,message):
-        if not self._closing:self.status.setText('Não foi possível concluir: '+message+' A imagem original foi preservada.')
+        if not self._closing:self.status.setText(tr('Não foi possível concluir: '+message+' A imagem original foi preservada.'))
 
     def job_finished(self):
         self.set_busy(False);self.undo.setEnabled(bool(self.history))
@@ -236,7 +237,7 @@ class BackgroundDialog(QDialog):
 
     def reject(self):
         if self.worker and self.worker.isRunning():
-            self._closing=True;self.worker.requestInterruption();self.status.setText('Cancelando… aguardando a tarefa local terminar.');return
+            self._closing=True;self.worker.requestInterruption();self.status.setText(tr('Cancelando… aguardando a tarefa local terminar.'));return
         super().reject()
 
     def closeEvent(self,event):

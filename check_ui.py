@@ -16,6 +16,7 @@ app.setStyle('Fusion');app.setWindowIcon(application_icon())
 settings_dir=tempfile.TemporaryDirectory()
 QSettings.setDefaultFormat(QSettings.Format.IniFormat)
 QSettings.setPath(QSettings.Format.IniFormat,QSettings.Scope.UserScope,settings_dir.name)
+QSettings.setPath(QSettings.Format.NativeFormat,QSettings.Scope.UserScope,settings_dir.name)
 w=PaintWindow();assert w.dark_mode
 w.resize(2560,1440);w.show();app.processEvents()
 assert w.header_bar.title_box.geometry().center().x() == w.header_bar.width()//2-1

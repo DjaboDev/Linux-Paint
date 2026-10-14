@@ -1,117 +1,132 @@
 # Linux Paint
 
-Um editor de imagens com a familiaridade do Paint clássico, uma ribbon compacta e visual pensado para o desktop Linux. Desenvolvido em Python e Qt/PySide6, também disponível para Windows e macOS.
+A Linux image editor combining the familiarity of classic Paint with a compact ribbon, a unified window header, and a modern desktop appearance. Built with Python and Qt/PySide6. Distribution and support currently target **Linux x86_64 only**.
 
-![Linux Paint no GNOME em modo escuro](screenshots/linux-paint-native-wayland.png)
+![Linux Paint on GNOME](screenshots/linux-paint-native-wayland.png)
 
-## Baixar
+## Download
 
-Os pacotes prontos estão em [Releases](https://github.com/DjaboDev/Linux-Paint/releases/latest):
+Get ready-to-run packages from [Releases](https://github.com/DjaboDev/Linux-Paint/releases/latest).
 
-| Sistema | Pacote |
+| Format | Intended use |
 |---|---|
-| Linux x86_64 | `.AppImage` portátil ou `.tar.gz`, com executável e instalador local |
-| Windows x86_64 | `.exe` portátil |
-| macOS Intel | `.dmg` x86_64 |
-| macOS Apple Silicon | `.dmg` arm64 |
+| `.tar.gz` | Standalone executable with a local installer; no sudo required |
+| `.AppImage` | Portable application with bundled dependencies |
+| `.flatpak` | Sandboxed application integrated with the desktop |
+| `.deb` | Debian, Ubuntu, and compatible distributions |
+| `.rpm` | Fedora and compatible RPM distributions |
 
-Cada pacote é compilado e passa por um teste de inicialização no próprio sistema de destino. Os arquivos `.sha256` permitem verificar a integridade do download. Os pacotes ainda não têm assinatura comercial nem notarização Apple; no macOS, use **Abrir** pelo menu de contexto quando necessário.
+The release series restarts at **0.4.0**, incorporating all previous improvements. Windows and macOS packages are no longer distributed or supported in this phase. All five Linux formats come from the same source and standalone executable, pass package startup checks, and include SHA256 checksums.
 
-### Linux
+## Installation
 
-Para o AppImage, permita a execução do arquivo e abra-o:
-
-```bash
-chmod +x LinuxPaint-*-linux-x86_64.AppImage
-./LinuxPaint-0.4.1-linux-x86_64.AppImage
-```
-
-Se o sistema não disponibilizar FUSE, use `--appimage-extract-and-run` ao abrir. O AppImage contém o aplicativo e suas dependências; o modelo IA continua no cache local, compartilhado com a versão instalada.
-
-Para o `.tar.gz`, extraia o pacote e execute `LinuxPaint/LinuxPaint`. Para adicionar ao menu de aplicativos:
+### AppImage
 
 ```bash
-cd LinuxPaint
-./install.sh
+chmod +x LinuxPaint-0.4.0-linux-x86_64.AppImage
+./LinuxPaint-0.4.0-linux-x86_64.AppImage
 ```
 
-O instalador não precisa de `sudo`. O ícone da janela e o lançador usam a mesma identidade no GNOME/Wayland e no X11.
+If FUSE is unavailable, add `--appimage-extract-and-run`.
 
-### Windows e macOS
+### tar.gz
 
-No Windows, abra o `.exe`. No macOS, abra o `.dmg`, arraste **LinuxPaint.app** para **Applications** e abra o aplicativo.
+Extract the archive and launch `LinuxPaint/LinuxPaint`. To add the application to your desktop menu, run `./install.sh` from the extracted folder. This installs into `~/.local` without sudo.
 
-## Ferramentas
+### deb and rpm
 
-- Barra superior unificada com arquivo, salvar, desfazer/refazer e controles da janela.
-- Tema escuro por padrão; opção de tema claro, com ribbon, menus e diálogos acompanhando a troca.
-- Ribbon com seleção, recorte, redimensionamento, rotação, lápis, pincéis, borracha, texto, formas e cores.
-- Pincéis redondo, quadrado e aerógrafo, com ícones que acompanham o tipo selecionado.
-- Espessura com exemplos visuais, ajuste numérico e dureza real; formato da borracha nas opções da ferramenta.
-- Réguas, grade, zoom, alças de resize com prévia visível e histórico de desfazer/refazer.
-- Seletor nativo de arquivos no Linux, com pastas e prévias oferecidas pelo desktop; abertura na pasta pessoal do usuário.
-- Abertura e exportação de imagens; transparência real em PNG e aviso antes de achatá-la em JPEG/BMP.
+```bash
+# Debian / Ubuntu:
+sudo apt install ./LinuxPaint-0.4.0-linux-x86_64.deb
+# Fedora:
+sudo dnf install ./LinuxPaint-0.4.0-linux-x86_64.rpm
+```
 
-## Remover fundo
+These packages install the application under `/opt/linux-paint`. Avoid keeping both a system package and a tar.gz installation with duplicate desktop launchers.
 
-![Editor de remoção de fundo](screenshots/remove-background.png)
+### Flatpak
 
-Abra uma imagem e clique em **Remover fundo**, à direita das cores na ribbon.
+```bash
+flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak install --user ./LinuxPaint-0.4.0-linux-x86_64.flatpak
+flatpak run io.github.DjaboDev.LinuxPaint
+```
 
-1. Use **Detectar pelas bordas** para fundos simples, ou **Seleção mágica** e clique no fundo. A tolerância controla o quanto as cores podem variar; **Área conectada** evita apagar regiões isoladas da mesma cor.
-2. Para fotografias e fundos complexos, use **Baixar modelo IA**, depois **Detectar com IA**. O modelo BiRefNet General Lite é baixado uma vez, verificado e armazenado no cache local. As imagens são processadas no computador e não são enviadas a um serviço.
-3. Corrija o recorte com **Manter** e **Apagar**. **Refinar com marcações** usa GrabCut para ajustar a separação. Você pode desfazer ajustes e recomeçar.
-4. Confira em transparência, branco e fundo escuro. Ajuste suavização, expansão/retração e redução de halo quando necessário. Use a roda para ampliar e o botão do meio para deslocar a prévia.
-5. Clique em **Aplicar recorte** e salve em **PNG**. O editor mantém o original até a aplicação, e `Ctrl+Z` desfaz o resultado.
+The bundle is distributed by this repository; the application is not listed on Flathub. The Freedesktop 25.08 runtime is downloaded separately. The sandbox allows access to your home directory for opening and saving images, and network access for downloading the optional AI model. Image processing remains local. Flatpak stores its own settings and model cache.
 
-A detecção automática é um ponto de partida: cabelos, transparências, sombras, objetos colados nas bordas e cores semelhantes entre fundo e objeto podem precisar de correções. As marcações manuais têm prioridade sobre a máscara automática. A suavização e o recorte nunca tornam opacos pixels que já eram transparentes.
+## Features
 
-O processamento ocorre em uma tarefa separada. Cancelar preserva a imagem; uma inferência já iniciada pode levar alguns segundos para terminar. O modelo não acompanha o executável, evitando inflar os downloads; o primeiro uso de IA precisa de internet para baixar cerca de 220 MB. As ferramentas por cor e GrabCut funcionam sem esse download.
+- Unified header with file actions, save, undo/redo, and window controls.
+- Dark mode by default, with a consistent light mode.
+- Window size and maximized state preserved across sessions; placement on Wayland is managed by the desktop compositor.
+- Automatic system language detection: English and Portuguese interfaces; other languages fall back to English. Native desktop dialogs follow the desktop language.
+- Selection, cropping, resizing, rotation, pencil, brushes, eraser, text, shapes, and colors.
+- Round, square, and airbrush tools with distinct previews.
+- Pencil, brush, eraser, and shape widths from 1 to 200 pixels; `[` / `]` adjust width, while `Ctrl +` / `Ctrl -` control zoom.
+- Edge hardness for pencil strokes and geometric shapes, with reversible previews that preserve existing pixels.
+- Rulers, grid, zoom, visible canvas resizing feedback, and undo/redo.
+- Native Linux file chooser remembering the last successfully opened folder, with the home directory as its initial/fallback location.
+- Real PNG transparency and a warning before exporting to an opaque format.
 
-## Rodar pelo código
+## Background removal
 
-Use Python 3.12 em um ambiente virtual:
+![Background removal editor](screenshots/remove-background.png)
+
+Open an image and click **Remove background** to the right of the ribbon's color controls.
+
+1. For simple backgrounds, use **Detect from edges** or **Magic selection** and click the background. Tolerance controls color variation; **Connected region** avoids removing isolated regions of the same color.
+2. For photographs, download the optional model and use **Detect with AI**. BiRefNet General Lite is downloaded once, verified, and cached locally. Images are never uploaded to a processing service.
+3. Correct the mask with **Keep** and **Remove**. **Refine with markings** uses GrabCut to improve the separation. Adjustments can be undone or reset.
+4. Review transparency, white, and dark previews. Adjust feathering, expansion/contraction, and halo reduction. Use the wheel to zoom and the middle mouse button to pan.
+5. Click **Apply cutout**, then save as **PNG**. The editor keeps the original until application; `Ctrl+Z` restores it afterward.
+
+Automatic detection is a starting point. Hair, transparent objects, shadows, objects touching the image boundary, and similar foreground/background colors can require manual corrections. Manual markings take priority over the automatic mask. Feathering never makes originally transparent pixels opaque.
+
+Processing runs in a background task. Cancelling preserves the source image; an inference already in progress may take a few seconds to finish. The optional model is approximately 220 MB and requires an internet connection for its first download. Color-based selection and GrabCut work without it.
+
+## Run from source
+
+Use Python 3.12:
 
 ```bash
 python3.12 -m venv .venv
-# Linux / macOS:
 source .venv/bin/activate
-# Windows PowerShell:
-# .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python paint.py
 ```
 
-Para instalar a versão por código no Linux, use `python install_linux.py` com o ambiente virtual ativo. Esse caminho usa o interpretador do ambiente: mantenha-o no local original. O instalador mantém o comando legado `classic-paint`, guarda uma cópia do lançador anterior e migra seu favorito no GNOME.
+`python install_linux.py` installs a launcher using the active virtual environment. Keep that environment in its original location. The installer preserves the legacy `classic-paint` command and migrates the GNOME favorite when applicable.
 
-## Testes e compilação
+## Tests and packaging
 
 ```bash
 python -m unittest discover -v
 python smoke.py
 python check_ui.py
 python build.py
+python linux_packages.py
 ```
 
-Os testes verificam desenho, histórico, cores, temas, pincéis, resize, máscaras, transparência, correções manuais, cancelamento e aplicação reversível. `check_ui.py` também renderiza a interface em QHD. A inferência IA é conferida separadamente com o modelo real; os testes normais não baixam pesos pela rede.
+Regression tests cover drawing, stroke width, hardness, colors, themes, masks, transparency, manual corrections, cancellation, and undo/redo. `check_ui.py` renders the interface at QHD resolution. Real AI inference is checked separately; routine tests do not download model weights.
 
-`build.py` compila no sistema/arquitetura atual e executa `--self-test` no binário gerado, incluindo Qt, o ícone, OpenCV e ONNX Runtime. O workflow do GitHub produz os pacotes para os quatro destinos e o AppImage Linux e só publica uma release marcada `v*` quando todos os builds passam.
+The GitHub workflow builds on Ubuntu 22.04 x86_64. `build.py` produces the standalone executable, tar.gz, and AppImage. `linux_packages.py` produces deb, rpm, and Flatpak packages and checks their executable payloads. Packaging needs `dpkg-deb`, `rpmbuild`, `rpm2cpio`, `cpio`, and Flatpak with the Freedesktop 25.08 SDK/runtime installed. The workflow publishes the five formats together after successful checks.
 
-## Organização
-
-| Arquivo | Responsabilidade |
+| File | Responsibility |
 |---|---|
-| `classic_paint/app.py` | Editor, canvas, histórico e eventos |
-| `classic_paint/modern_ui.py` | Ribbon simbólica, tema e identidade do aplicativo |
-| `classic_paint/cutout.py` | Máscaras, seleção por cor, GrabCut e inferência IA |
-| `classic_paint/cutout_dialog.py` | Prévia e ferramentas de correção do recorte |
-| `build.py` | Executáveis, teste empacotado e hashes |
-| `install_linux.py` / `linux/install-packaged.sh` | Integração por código / por pacote no Linux |
+| `classic_paint/app.py` | Editor, canvas, history, and input |
+| `classic_paint/modern_ui.py` | Symbolic ribbon and desktop identity |
+| `classic_paint/modern_widgets.py` | Modern font previews and text controls |
+| `classic_paint/i18n.py` | System-language interface translations |
+| `classic_paint/brushes.py` | Stroke hardness and shape feathering |
+| `classic_paint/cutout.py` | Masks, color selection, GrabCut, and AI inference |
+| `classic_paint/cutout_dialog.py` | Cutout preview and correction tools |
+| `build.py` / `linux_packages.py` | Linux executable, package checks, and hashes |
+| `install_linux.py` / `linux/install-packaged.sh` | Source and tar.gz desktop integration |
 
-## Créditos e licença
+## Credits and license
 
-Desenvolvimento do fork: [DjaboDev/Linux-Paint](https://github.com/DjaboDev/Linux-Paint). Base original: [blankresearch/ClassicPaint](https://github.com/blankresearch/ClassicPaint).
+Fork development: [DjaboDev/Linux-Paint](https://github.com/DjaboDev/Linux-Paint). Original project: [blankresearch/ClassicPaint](https://github.com/blankresearch/ClassicPaint).
 
-Código do projeto sob licença MIT. O ícone e a ribbon atuais foram criados para Linux Paint. Recursos legados herdados do projeto original podem ter licença própria; veja [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Este projeto é independente da Microsoft.
+Project code is licensed under MIT. The current icon and symbolic ribbon were created for Linux Paint. Inherited legacy resources may carry separate terms; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). This project is independent of Microsoft.
 
-A remoção inteligente utiliza [OpenCV/GrabCut](https://docs.opencv.org/4.x/d8/d83/tutorial_py_grabcut.html), [BiRefNet](https://github.com/ZhengPeng7/BiRefNet) e [ONNX Runtime](https://onnxruntime.ai/). A origem do modelo e sua configuração são documentadas nos avisos de terceiros.
+Local cutout processing uses [OpenCV/GrabCut](https://docs.opencv.org/4.x/d8/d83/tutorial_py_grabcut.html), [BiRefNet](https://github.com/ZhengPeng7/BiRefNet), and [ONNX Runtime](https://onnxruntime.ai/). Model sources and configuration are documented in the third-party notices.

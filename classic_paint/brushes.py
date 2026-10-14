@@ -16,6 +16,15 @@ def soft_stroke(painter,a,b,color,width,hardness,square=False):
         x,y=np.meshgrid(coordinates,coordinates)
         distance=np.maximum(np.abs(x),np.abs(y)) if square else np.hypot(x,y)
         coverage=np.clip((radius-distance)/max(.1,radius*(1-hardness/100)),0,1)
+        if width<3:
+            # Integrate coverage inside each pixel: a 1-pixel tip still responds
+            # to hardness instead of sampling only a fully opaque center.
+            coverage=np.zeros_like(distance)
+            for dx in (-.375,-.125,.125,.375):
+                for dy in (-.375,-.125,.125,.375):
+                    d=np.maximum(np.abs(x+dx),np.abs(y+dy)) if square else np.hypot(x+dx,y+dy)
+                    coverage+=np.clip((radius-d)/max(.1,radius*(1-hardness/100)),0,1)/16
+
         pixels=np.zeros((size,size,4),np.uint8)
         pixels[:,:,:3]=(color.red(),color.green(),color.blue())
         pixels[:,:,3]=np.round(coverage*(255 if erase else color.alpha())).astype(np.uint8)
@@ -29,3 +38,16 @@ def soft_stroke(painter,a,b,color,width,hardness,square=False):
         t=i/steps
         center=QPointF(a.x()+(b.x()-a.x())*t,a.y()+(b.y()-a.y())*t)
         painter.drawImage(center-QPointF(stamp.width()/2,stamp.height()/2),stamp)
+
+
+def feather_shape(image,sigma):
+    """Soften only the new shape, filtering premultiplied colors to avoid halos."""
+    import cv2
+    image=image.convertToFormat(QImage.Format.Format_RGBA8888)
+    rgba=np.frombuffer(image.constBits(),np.uint8).reshape(image.height(),image.bytesPerLine())[:,:image.width()*4].reshape(image.height(),image.width(),4).astype(np.float32)/255
+    rgba[:,:,:3]*=rgba[:,:,3:4]
+    rgba=cv2.GaussianBlur(rgba,(0,0),sigmaX=sigma,sigmaY=sigma,borderType=cv2.BORDER_CONSTANT)
+    alpha=rgba[:,:,3:4]
+    rgba[:,:,:3]=np.divide(rgba[:,:,:3],alpha,out=np.zeros_like(rgba[:,:,:3]),where=alpha>0)
+    pixels=np.round(np.clip(rgba,0,1)*255).astype(np.uint8)
+    return QImage(pixels.data,image.width(),image.height(),pixels.strides[0],QImage.Format.Format_RGBA8888).copy()

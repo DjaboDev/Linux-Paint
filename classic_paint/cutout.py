@@ -1,3 +1,4 @@
+from .i18n import tr
 """Local background segmentation, independent of the editor and GUI thread."""
 from pathlib import Path
 import hashlib
@@ -24,7 +25,7 @@ def image_from_rgba(array):
 
 def magic_region(rgb,seed,tolerance,contiguous=True):
     x,y=seed
-    if not (0<=x<rgb.shape[1] and 0<=y<rgb.shape[0]):raise ValueError('Clique dentro da imagem.')
+    if not (0<=x<rgb.shape[1] and 0<=y<rgb.shape[0]):raise ValueError(tr('Clique dentro da imagem.'))
     tolerance=max(0,min(255,int(tolerance)))
     if not contiguous:
         distance=np.max(np.abs(rgb.astype(np.int16)-rgb[y,x].astype(np.int16)),axis=2)
@@ -46,7 +47,7 @@ def border_alpha(rgba,tolerance=24):
 
 def grabcut_alpha(rgba,alpha=None,keep=None,erase=None):
     h,w=rgba.shape[:2]
-    if min(h,w)<3:raise ValueError('Imagem pequena demais para refinar.')
+    if min(h,w)<3:raise ValueError(tr('Imagem pequena demais para refinar.'))
     factor=min(1,1200/max(h,w));size=(max(3,round(w*factor)),max(3,round(h*factor)))
     rgb=cv2.resize(rgba[:,:,:3],size,interpolation=cv2.INTER_AREA)
     labels=np.full((size[1],size[0]),cv2.GC_PR_FGD,np.uint8)
@@ -65,7 +66,7 @@ def grabcut_alpha(rgba,alpha=None,keep=None,erase=None):
     if keep is not None:labels[cv2.resize(keep.astype(np.uint8),size,interpolation=cv2.INTER_NEAREST)>0]=cv2.GC_FGD
     if erase is not None:labels[cv2.resize(erase.astype(np.uint8),size,interpolation=cv2.INTER_NEAREST)>0]=cv2.GC_BGD
     if not np.any((labels==cv2.GC_BGD)|(labels==cv2.GC_PR_BGD)) or not np.any((labels==cv2.GC_FGD)|(labels==cv2.GC_PR_FGD)):
-        raise ValueError('Marque pelo menos uma área para manter e outra para apagar.')
+        raise ValueError(tr('Marque pelo menos uma área para manter e outra para apagar.'))
     # Deterministic initialization and capped analysis size keep repeated previews stable.
     cv2.setRNGSeed(0)
     bg=np.zeros((1,65),np.float64);fg=np.zeros((1,65),np.float64)
@@ -92,7 +93,7 @@ def download_model(progress=lambda value:None,cancel=lambda:False):
                 if not chunk:break
                 stream.write(chunk);digest.update(chunk);count+=len(chunk)
                 progress(min(99,round(count*100/total)) if total else -1)
-        if digest.hexdigest()!=MODEL_MD5:raise ValueError('O modelo baixado falhou na verificação de integridade.')
+        if digest.hexdigest()!=MODEL_MD5:raise ValueError(tr('O modelo baixado falhou na verificação de integridade.'))
         temp.replace(path);progress(100);return path
     finally:temp.unlink(missing_ok=True)
 
