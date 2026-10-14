@@ -15,6 +15,7 @@ APP.setStyle('Fusion')
 CACHE=tempfile.TemporaryDirectory()
 QSettings.setDefaultFormat(QSettings.Format.IniFormat)
 QSettings.setPath(QSettings.Format.IniFormat,QSettings.Scope.UserScope,CACHE.name)
+QSettings.setPath(QSettings.Format.NativeFormat,QSettings.Scope.UserScope,CACHE.name)
 
 class DialogTests(unittest.TestCase):
     def setUp(self):
