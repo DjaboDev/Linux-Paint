@@ -1,2 +1,2 @@
-"""Classic Paint - a Windows 7 style raster editor built with PySide6."""
-__version__ = "0.3.0"
+"""Linux Paint — raster editor with a compact ribbon and local cutout tools."""
+__version__ = "0.4.0"

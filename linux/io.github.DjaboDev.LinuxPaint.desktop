@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Linux Paint
+GenericName=Image Editor
+Comment=Editor de imagens com interface ribbon
+Exec=linux-paint %f
+Icon=io.github.DjaboDev.LinuxPaint
+Terminal=false
+Categories=Graphics;2DGraphics;RasterGraphics;
+MimeType=image/png;image/jpeg;image/bmp;image/gif;image/webp;image/tiff;
+StartupWMClass=LinuxPaint
+StartupNotify=true
+Keywords=paint;draw;painting;ribbon;
