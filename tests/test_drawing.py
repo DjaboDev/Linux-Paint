@@ -30,6 +30,13 @@ class DrawingTests(unittest.TestCase):
             c=self.prepare('pencil',12);c.brush_style=style
             c.draw_stroke(QPoint(90,90),QPoint(90,90));images.append(rgba_from_image(c.image))
         for image in images[1:]:np.testing.assert_array_equal(images[0],image)
+    def test_one_pixel_pencil_also_obeys_hardness(self):
+        results=[]
+        for hardness in (100,0):
+            c=self.prepare('pencil',1,hardness);c.draw_stroke(QPoint(90,90),QPoint(90,90))
+            results.append(rgba_from_image(c.image)[:,:,3])
+        self.assertEqual(results[0].max(),255);self.assertLess(results[1].max(),255)
+        self.assertFalse(np.array_equal(*results))
     def test_pencil_and_all_shapes_obey_hardness(self):
         for tool in ('pencil',)+SHAPE_TOOLS+('trapezoid',):
             results=[]
@@ -62,6 +69,13 @@ class DrawingTests(unittest.TestCase):
         drawn=c.image.copy();self.assertNotEqual(drawn,original)
         c.undo();self.assertEqual(c.image,original)
         c.redo();self.assertEqual(c.image,drawn)
+    def test_airbrush_hardness_changes_falloff(self):
+        import random
+        results=[]
+        for hardness in (100,0):
+            random.seed(42);c=self.prepare('brush',12,hardness);c.brush_style='Airbrush'
+            c.draw_stroke(QPoint(90,90),QPoint(90,90));results.append(rgba_from_image(c.image)[:,:,3])
+        self.assertFalse(np.array_equal(*results));self.assertLess(results[1].sum(),results[0].sum())
     def test_right_button_swaps_outline_and_fill(self):
         c=self.prepare('rectangle');c.fill=True;c.right_button=True
         c.draw_shape(QPoint(130,130));self.assertEqual(c.image.pixelColor(90,90),c.primary)

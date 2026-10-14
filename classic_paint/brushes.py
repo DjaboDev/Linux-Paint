@@ -16,6 +16,15 @@ def soft_stroke(painter,a,b,color,width,hardness,square=False):
         x,y=np.meshgrid(coordinates,coordinates)
         distance=np.maximum(np.abs(x),np.abs(y)) if square else np.hypot(x,y)
         coverage=np.clip((radius-distance)/max(.1,radius*(1-hardness/100)),0,1)
+        if width<3:
+            # Integrate coverage inside each pixel: a 1-pixel tip still responds
+            # to hardness instead of sampling only a fully opaque center.
+            coverage=np.zeros_like(distance)
+            for dx in (-.375,-.125,.125,.375):
+                for dy in (-.375,-.125,.125,.375):
+                    d=np.maximum(np.abs(x+dx),np.abs(y+dy)) if square else np.hypot(x+dx,y+dy)
+                    coverage+=np.clip((radius-d)/max(.1,radius*(1-hardness/100)),0,1)/16
+
         pixels=np.zeros((size,size,4),np.uint8)
         pixels[:,:,:3]=(color.red(),color.green(),color.blue())
         pixels[:,:,3]=np.round(coverage*(255 if erase else color.alpha())).astype(np.uint8)

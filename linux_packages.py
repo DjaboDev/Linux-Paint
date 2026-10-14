@@ -27,6 +27,8 @@ def tree(root,folder):
     shutil.copy2(root/'linux'/f'{APP_ID}.desktop',desktop)
     icon=stage/'usr'/'share'/'icons'/'hicolor'/'256x256'/'apps'/f'{APP_ID}.png';icon.parent.mkdir(parents=True)
     shutil.copy2(folder/'linux-paint.png',icon)
+    meta=stage/'usr'/'share'/'metainfo';meta.mkdir(parents=True)
+    shutil.copy2(root/'linux'/f'{APP_ID}.metainfo.xml',meta/f'{APP_ID}.metainfo.xml')
     docs=stage/'usr'/'share'/'doc'/'linux-paint';docs.mkdir(parents=True)
     shutil.copy2(root/'LICENSE',docs/'copyright')
     shutil.copy2(root/'THIRD_PARTY_NOTICES.md',docs/'THIRD_PARTY_NOTICES.md')
@@ -78,6 +80,7 @@ cp -a . %{{buildroot}}/
 /usr/share/applications/{APP_ID}.desktop
 /usr/share/icons/hicolor/256x256/apps/{APP_ID}.png
 /usr/share/doc/linux-paint
+/usr/share/metainfo/{APP_ID}.metainfo.xml
 """)
     run('rpmbuild','-bb','--define',f'_topdir {top}',spec)
     rpm=releases/(label+'.rpm');shutil.copy2(next((top/'RPMS').rglob('*.rpm')),rpm)
@@ -109,6 +112,8 @@ def flatpak_package(root,folder,releases,label):
     shutil.copy2(root/'linux'/f'{APP_ID}.desktop',desktop)
     icon=files/'share'/'icons'/'hicolor'/'256x256'/'apps'/f'{APP_ID}.png';icon.parent.mkdir(parents=True)
     shutil.copy2(folder/'linux-paint.png',icon)
+    meta=files/'share'/'metainfo';meta.mkdir(parents=True)
+    shutil.copy2(root/'linux'/f'{APP_ID}.metainfo.xml',meta/f'{APP_ID}.metainfo.xml')
     run('flatpak','build-finish',stage,'--command=linux-paint','--share=ipc','--share=network','--socket=wayland','--socket=fallback-x11','--device=dri','--filesystem=home')
     repo=work/'repo';run('flatpak','build-export',repo,stage,'stable')
     package=releases/(label+'.flatpak')

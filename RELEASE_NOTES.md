@@ -1,16 +1,16 @@
-# Linux Paint 0.4.0 — nova base Linux
+# Linux Paint 0.4.0 — new Linux-only baseline
 
-- O lápis respeita a espessura escolhida, de 1 a 200 px, e não herda o formato do pincel anterior.
-- A dureza da borda funciona no lápis, nas linhas e em todas as formas geométricas, incluindo as preenchidas. A suavização afeta apenas a nova forma e preserva o desenho existente.
-- Desenhar formas com o botão direito troca corretamente as cores do contorno e do preenchimento.
-- Os atalhos [ e ] ajustam a espessura e mantêm os controles da ribbon sincronizados; Ctrl + e Ctrl - continuam controlando o zoom.
-- O cursor do lápis acompanha o tamanho selecionado.
+This release restarts the version series at 0.4.0 and incorporates all improvements from the previous releases. Distribution and support now target Linux x86_64 exclusively.
 
-Esta 0.4.0 reinicia a numeração e reúne todas as melhorias anteriores: ícone próprio, barra superior unificada, ribbon compacta, temas claro/escuro corrigidos, seletor nativo de arquivos, remoção local de fundo por IA/seleção mágica/GrabCut, controles legíveis e prévia de resize.
+Available packages: **tar.gz, AppImage, Flatpak, deb and rpm**, with SHA256 checksums. Flatpak uses the Freedesktop 25.08 runtime and is distributed as a bundle from this repository, not as a Flathub listing.
 
-Distribuição exclusivamente Linux x86_64 em tar.gz, AppImage, Flatpak, deb e rpm. Windows e macOS deixam de ser distribuídos nesta fase. Testes de regressão cobrem espessura, dureza em todas as formas, cores, limites da tela e desfazer/refazer. Os pacotes passam por teste de inicialização e acompanham SHA256.
+- Pencil width now follows the selected value, from 1 to 200 pixels, independently of the previously selected brush.
+- Edge hardness works for pencil strokes (including a 1-pixel tip), airbrush intensity, lines and geometric shapes. Soft shape previews preserve the existing canvas and remain undoable.
+- Right-click shape drawing correctly swaps outline and fill colors.
+- Width shortcuts [ and ] update the ribbon controls; Ctrl + and Ctrl - remain zoom shortcuts.
+- Modern font previews, symbolic text-background options and message icons, themed combo boxes, fields, menus and scrollbars.
+- Automatic English/Portuguese system-language interface, with English fallback for other locales. README fully translated into English.
+- Window size and maximized state restored after interface setup, and the last successfully opened folder remembered, with home-directory fallback.
+- Previous features retained: custom app icon and desktop identity, unified header, compact ribbon, consistent light/dark modes, native file chooser, readable controls, resize feedback and local background removal with magic selection, AI, GrabCut and manual corrections.
 
-- README fully translated into English; automatic English/Portuguese system-language interface, with English fallback for other locales.
-- Modern font previews, symbolic text-background options, themed combo boxes and scrollbars throughout the editor.
-
-- Remembers window size/maximized state and the last successfully opened folder, with home-directory fallback.
+29 regression tests cover drawing, width, hardness, all shapes, canvas boundaries, language/menu behavior, persistence, transparency, cancellation and undo/redo. Each package is checked by launching its executable payload; Flatpak is additionally launched inside its sandbox.

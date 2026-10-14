@@ -16,6 +16,9 @@ def tr(value):
     if not isinstance(value,str):return value
     lang=language()
     if value in _MAPS[lang]:return _MAPS[lang][value]
+    if ';;' in value:return ';;'.join(tr(part) for part in value.split(';;'))
+    for source in ('Images','All files'):
+        if value.startswith(source+' ('):return _MAPS[lang].get(source,source)+value[len(source):]
     for source,target in _PREFIXES[lang]:
         if value.startswith(source):return target+value[len(source):]
     if '\n' in value:return '\n'.join(tr(line) for line in value.split('\n'))

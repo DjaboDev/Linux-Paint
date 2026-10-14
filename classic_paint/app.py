@@ -816,6 +816,13 @@ class Canvas(QWidget):
                 cy = a.y() + (b.y() - a.y()) * step / steps
                 for _ in range(max(8, width * 4)):
                     angle, r = random.random() * math.tau, math.sqrt(random.random()) * radius
+                    coverage=1 if hardness==100 else min(1,(radius-r)/max(.1,radius*(1-hardness/100)))
+                    dot=QColor(color)
+                    if color.alpha()==0:
+                        p.setCompositionMode(QPainter.CompositionMode.CompositionMode_DestinationOut)
+                        dot=QColor(0,0,0,round(255*coverage))
+                    else:dot.setAlpha(round(color.alpha()*coverage))
+                    p.setPen(QPen(dot,1))
                     p.drawPoint(QPointF(cx + math.cos(angle) * r, cy + math.sin(angle) * r))
         else:
             p.drawLine(a, b)
@@ -2748,7 +2755,7 @@ class PaintWindow(QMainWindow):
         self.canvas.invert_selection();self.update_ribbon_state()
 
     def paste_from(self):
-        filename,_=QFileDialog.getOpenFileName(self,tr('Colar de uma imagem'),str(Path.home()),'Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp)')
+        filename,_=QFileDialog.getOpenFileName(self,tr('Colar de uma imagem'),str(Path.home()),tr('Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp)'))
         if filename:
             reader=QImageReader(filename);reader.setAutoTransform(True);size=reader.size()
             if size.isValid() and size.width()*size.height()>MAX_PIXELS:return
@@ -3157,7 +3164,7 @@ class PaintWindow(QMainWindow):
     def open_file(self):
         if not self.confirm_unsaved():
             return
-        path, _ = QFileDialog.getOpenFileName(self, tr('Abrir imagem'), str(self.open_directory()), 'Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;All files (*)')
+        path, _ = QFileDialog.getOpenFileName(self, tr('Abrir imagem'), str(self.open_directory()), tr('Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;All files (*)'))
         if not path:
             return
         self.load_file_from_path(path)
@@ -3309,7 +3316,9 @@ def main():
     app.setStyle(ModernStyle())
     translator=QTranslator(app)
     from PySide6.QtCore import QLocale
-    translator.load('qtbase_'+QLocale.system().name(),QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))
+    translated=translator.load('qtbase_'+QLocale.system().name(),QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))
+    if not translated and QLocale.system().language()==QLocale.Language.Portuguese:
+        translator.load('qtbase_pt_BR',QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))
     app.installTranslator(translator)
     window = PaintWindow()
     window.show()
