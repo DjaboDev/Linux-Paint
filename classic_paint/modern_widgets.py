@@ -30,6 +30,9 @@ def text_background_icon(opaque,dark):
 from PySide6.QtWidgets import QProxyStyle,QStyle
 class ModernStyle(QProxyStyle):
     def __init__(self):super().__init__('Fusion')
+    def standardIcon(self,icon,option=None,widget=None):
+        if icon in (QStyle.StandardPixmap.SP_MessageBoxInformation,QStyle.StandardPixmap.SP_MessageBoxQuestion,QStyle.StandardPixmap.SP_MessageBoxWarning,QStyle.StandardPixmap.SP_MessageBoxCritical):return QIcon(self.standardPixmap(icon,option,widget))
+        return super().standardIcon(icon,option,widget)
     def standardPixmap(self,icon,option=None,widget=None):
         icons={QStyle.StandardPixmap.SP_MessageBoxInformation:('i','#3584e4'),QStyle.StandardPixmap.SP_MessageBoxQuestion:('?','#3584e4'),QStyle.StandardPixmap.SP_MessageBoxWarning:('!','#c88800'),QStyle.StandardPixmap.SP_MessageBoxCritical:('!','#c01c28')}
         if icon not in icons:return super().standardPixmap(icon,option,widget)
