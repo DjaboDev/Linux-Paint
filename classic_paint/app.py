@@ -792,17 +792,17 @@ class Canvas(QWidget):
             color = self.active_color()
             if color.alpha() == 0:
                 p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
-        width = 1 if self.tool == 'pencil' else self.stroke_width
+        width = self.stroke_width
         if self.tool == 'eraser':
             width = max(1, width)
             shape = getattr(self, 'eraser_shape', 'round')
             cap = Qt.PenCapStyle.RoundCap if shape == 'round' else Qt.PenCapStyle.SquareCap
         else:
-            cap = Qt.PenCapStyle.SquareCap if self.brush_style == 'Square' else Qt.PenCapStyle.RoundCap
+            cap = Qt.PenCapStyle.SquareCap if self.tool=='pencil' or self.brush_style == 'Square' else Qt.PenCapStyle.RoundCap
         hardness=getattr(self,'hardness',100)
-        if hardness<100 and self.tool in ('brush','eraser') and not (self.tool=='brush' and self.brush_style=='Airbrush'):
+        if hardness<100 and self.tool in ('brush','pencil','eraser') and not (self.tool=='brush' and self.brush_style=='Airbrush'):
             from .brushes import soft_stroke
-            square=(self.tool=='eraser' and getattr(self,'eraser_shape','round')=='square') or (self.tool=='brush' and self.brush_style=='Square')
+            square=self.tool=='pencil' or (self.tool=='eraser' and getattr(self,'eraser_shape','round')=='square') or (self.tool=='brush' and self.brush_style=='Square')
             soft_stroke(p,a,b,color,width,hardness,square);p.end();return
         p.setPen(QPen(color, width, Qt.PenStyle.SolidLine, cap, Qt.PenJoinStyle.RoundJoin))
         if self.brush_style == 'Airbrush' and self.tool == 'brush':
@@ -834,11 +834,21 @@ class Canvas(QWidget):
                 length = max(abs(dx), abs(dy))
                 b = QPoint(a.x() + (length if dx >= 0 else -length), a.y() + (length if dy >= 0 else -length))
         r = QRectF(QPointF(a), QPointF(b)).normalized()
-        p = QPainter(self.image)
+        sigma=self.stroke_width*.5*(1-self.hardness/100)
+        layer=None
+        if sigma>0:
+            margin=math.ceil(self.stroke_width/2+3*sigma+2)
+            bounds=r.adjusted(-margin,-margin,margin,margin)
+            if self.tool=='curve':bounds=bounds.adjusted(0,-r.height()*.7,0,r.height()*.7)
+            region=bounds.toAlignedRect().intersected(self.image.rect().adjusted(-margin,-margin,margin,margin))
+            if region.isEmpty():return
+            layer=blank(region.width(),region.height(),Qt.GlobalColor.transparent)
+        p = QPainter(layer if layer is not None else self.image)
+        if layer is not None:p.translate(-region.x(),-region.y())
         p.setRenderHint(QPainter.RenderHint.Antialiasing, self.antialias)
         p.setPen(QPen(self.active_color(), self.stroke_width, self.outline_style,
                       Qt.PenCapStyle.FlatCap, Qt.PenJoinStyle.RoundJoin) if self.outline else Qt.PenStyle.NoPen)
-        p.setBrush(self.secondary if self.fill else Qt.BrushStyle.NoBrush)
+        p.setBrush((self.primary if self.right_button else self.secondary) if self.fill else Qt.BrushStyle.NoBrush)
         if self.tool == 'line':
             p.setPen(QPen(self.active_color(), self.stroke_width,self.outline_style) if self.outline else Qt.PenStyle.NoPen)
             p.drawLine(a, b)
@@ -895,6 +905,11 @@ class Canvas(QWidget):
             p.drawPolygon(QPolygonF([QPointF(0,h*.3),QPointF(w*.6,h*.3),QPointF(w*.6,0),QPointF(w,h*.5),QPointF(w*.6,h),QPointF(w*.6,h*.7),QPointF(0,h*.7)]))
             p.restore()
         p.end()
+        if layer is not None:
+            from .brushes import feather_shape
+            p=QPainter(self.image)
+            p.drawImage(region.topLeft(),feather_shape(layer,sigma))
+            p.end()
 
     def resize_handle_at(self, position):
         w,h=self.image.width()*self.zoom,self.image.height()*self.zoom
@@ -1200,8 +1215,9 @@ class Canvas(QWidget):
     def tool_cursor(self):
         tool=self.tool
         if tool=='text':return QCursor(Qt.CursorShape.IBeamCursor)
-        if tool in ('brush','eraser'):
+        if tool in ('brush','pencil','eraser'):
             if tool=='eraser':size,shape=max(1,self.stroke_width),getattr(self, 'eraser_shape', 'round')
+            elif tool=='pencil':size,shape=self.stroke_width,'square'
             elif self.brush_style=='Airbrush':size,shape=max(3,self.stroke_width*2)*2,'round'
             else:size,shape=self.stroke_width,'square' if self.brush_style=='Square' else 'round'
             size=min(128,round(size*self.zoom))
@@ -1240,6 +1256,12 @@ class Canvas(QWidget):
             return self._cursor_cache[key]
         return QCursor(Qt.CursorShape.CrossCursor)
 
+    def change_width(self, delta):
+        width=max(1,min(200,self.stroke_width+delta))
+        win=self.window()
+        if hasattr(win,'set_width'):win.set_width(width)
+        else:self.stroke_width=width;self.update_pointer()
+
     def keyPressEvent(self, event):
         if event.matches(QKeySequence.StandardKey.Undo) or (event.key() == Qt.Key.Key_Z and event.modifiers() == Qt.KeyboardModifier.ControlModifier):
             self.undo()
@@ -1268,14 +1290,9 @@ class Canvas(QWidget):
                 if hasattr(win, 'select_all'): win.select_all()
                 event.accept()
                 return
-            elif event.key() in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
-                self.stroke_width = min(30, self.stroke_width + 1)
-                self.update_pointer()
-                event.accept()
-                return
-            elif event.key() == Qt.Key.Key_Minus:
-                self.stroke_width = max(1, self.stroke_width - 1)
-                self.update_pointer()
+        if event.modifiers()==Qt.KeyboardModifier.NoModifier and self.tool in ('brush','pencil','eraser')+SHAPE_TOOLS:
+            if event.key() in (Qt.Key.Key_BracketLeft,Qt.Key.Key_BracketRight):
+                self.change_width(1 if event.key()==Qt.Key.Key_BracketRight else -1)
                 event.accept()
                 return
         arrows={Qt.Key.Key_Left:(-1,0),Qt.Key.Key_Right:(1,0),Qt.Key.Key_Up:(0,-1),Qt.Key.Key_Down:(0,1)}
@@ -2575,6 +2592,7 @@ class PaintWindow(QMainWindow):
             a.triggered.connect(lambda checked=False,v=value:self.set_fill_style(v))
         self.fill_button.setMenu(self.fill_menu);self.fill_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.size_button=button('size',(705,0,52,81),'Size');menu=QMenu(self.size_button)
+        self.size_button.setToolTip('Espessura e dureza da borda — [ diminui, ] aumenta a espessura')
         menu.setStyleSheet("QMenu {icon-size:64px;} QMenu::item {padding:4px 22px 4px 8px;}")
         preset_title = QLabel("Espessura do traço")
         preset_title.setStyleSheet("font-weight:bold; padding:4px 10px; color:#888888; font-size:11px;")
@@ -3201,6 +3219,12 @@ class PaintWindow(QMainWindow):
             size = image.size().scaled(rect.size(), Qt.AspectRatioMode.KeepAspectRatio)
             p.drawImage(QRect(rect.topLeft(), size), image)
             p.end()
+
+    def change_width(self, delta):
+        width=max(1,min(200,self.stroke_width+delta))
+        win=self.window()
+        if hasattr(win,'set_width'):win.set_width(width)
+        else:self.stroke_width=width;self.update_pointer()
 
     def keyPressEvent(self, event):
         if event.matches(QKeySequence.StandardKey.Undo) or (event.key() == Qt.Key.Key_Z and event.modifiers() == Qt.KeyboardModifier.ControlModifier):

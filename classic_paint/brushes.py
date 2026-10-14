@@ -29,3 +29,16 @@ def soft_stroke(painter,a,b,color,width,hardness,square=False):
         t=i/steps
         center=QPointF(a.x()+(b.x()-a.x())*t,a.y()+(b.y()-a.y())*t)
         painter.drawImage(center-QPointF(stamp.width()/2,stamp.height()/2),stamp)
+
+
+def feather_shape(image,sigma):
+    """Soften only the new shape, filtering premultiplied colors to avoid halos."""
+    import cv2
+    image=image.convertToFormat(QImage.Format.Format_RGBA8888)
+    rgba=np.frombuffer(image.constBits(),np.uint8).reshape(image.height(),image.bytesPerLine())[:,:image.width()*4].reshape(image.height(),image.width(),4).astype(np.float32)/255
+    rgba[:,:,:3]*=rgba[:,:,3:4]
+    rgba=cv2.GaussianBlur(rgba,(0,0),sigmaX=sigma,sigmaY=sigma,borderType=cv2.BORDER_CONSTANT)
+    alpha=rgba[:,:,3:4]
+    rgba[:,:,:3]=np.divide(rgba[:,:,:3],alpha,out=np.zeros_like(rgba[:,:,:3]),where=alpha>0)
+    pixels=np.round(np.clip(rgba,0,1)*255).astype(np.uint8)
+    return QImage(pixels.data,image.width(),image.height(),pixels.strides[0],QImage.Format.Format_RGBA8888).copy()

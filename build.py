@@ -1,4 +1,4 @@
-"""Build native Linux, macOS or Windows artifacts and verify the packaged runtime."""
+"""Build Linux artifacts and verify the packaged runtime."""
 import argparse
 import hashlib
 import os
@@ -20,7 +20,7 @@ def run(*args,env=None):
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--arch',choices=['x86_64','arm64'])
     args=parser.parse_args();system=platform.system()
-    if system not in ('Linux','Darwin','Windows'):parser.error('Build on Linux, macOS or Windows.')
+    if system!='Linux':parser.error('Supported builds are Linux only.')
     native={'AMD64':'x86_64','aarch64':'arm64'}.get(platform.machine(),platform.machine())
     target=args.arch or native
     if target!=native:parser.error('Build on the target architecture; cross-compilation is not supported.')
