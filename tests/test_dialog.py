@@ -57,11 +57,56 @@ class DialogTests(unittest.TestCase):
         for dark in (True,False):
             self.w.set_dark_mode(dark);self.w.set_width(12)
             spin=self.w.size_spinbox;spin.window().show();APP.processEvents()
-            QTest.mouseClick(spin,Qt.MouseButton.LeftButton,pos=QPoint(spin.width()-10,6))
+            QTest.mouseClick(spin.increase,Qt.MouseButton.LeftButton)
             self.assertEqual(spin.value(),13)
-            QTest.mouseClick(spin,Qt.MouseButton.LeftButton,pos=QPoint(spin.width()-10,spin.height()-6))
+            QTest.mouseClick(spin.decrease,Qt.MouseButton.LeftButton)
             self.assertEqual(spin.value(),12)
             spin.window().hide()
+
+    def test_modern_alert_escape_preserves_unsaved_image(self):
+        from classic_paint.modern_widgets import ModernAlert
+        dialog=ModernAlert(self.w,'Unsaved image','Save changes?',
+            QMessageBox.StandardButton.Save|QMessageBox.StandardButton.Discard|QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Save)
+        dialog.show();APP.processEvents()
+        self.assertTrue(dialog.windowFlags() & Qt.WindowType.FramelessWindowHint)
+        self.assertTrue(dialog.responses[QMessageBox.StandardButton.Save].isDefault())
+        self.assertTrue(all(button.icon().isNull() for button in dialog.responses.values()))
+        QTest.keyClick(dialog,Qt.Key.Key_Escape)
+        self.assertEqual(dialog.response,QMessageBox.StandardButton.Cancel)
+
+    def test_modern_alert_keeps_standard_responses(self):
+        from classic_paint.modern_widgets import ModernAlert
+        for response in (QMessageBox.StandardButton.Save,QMessageBox.StandardButton.Discard):
+            dialog=ModernAlert(self.w,'Unsaved image','Save changes?',
+                QMessageBox.StandardButton.Save|QMessageBox.StandardButton.Discard|QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Save)
+            dialog.show();APP.processEvents()
+            QTest.mouseClick(dialog.responses[response],Qt.MouseButton.LeftButton)
+            self.assertEqual(dialog.response,response)
+
+    def test_cutout_header_is_added_once_and_action_is_highlighted(self):
+        from PySide6.QtWidgets import QLabel,QDialogButtonBox
+        dialog=BackgroundDialog(self.w.canvas.image,self.w)
+        for _ in range(2):
+            dialog.show();APP.processEvents();dialog.hide()
+        self.assertEqual(len(dialog.findChildren(QLabel,'DialogHeading')),1)
+        apply=dialog.buttons.button(QDialogButtonBox.StandardButton.Ok)
+        self.assertTrue(apply.property('suggested'))
+        self.assertTrue(apply.icon().isNull())
+        self.assertGreaterEqual(dialog.feather.height(),36)
+        dialog.reject()
+
+    def test_numeric_buttons_respect_bounds_and_keyboard(self):
+        from classic_paint.modern_widgets import ModernSpinBox
+        spin=ModernSpinBox(self.w);spin.setRange(0,2);spin.show();APP.processEvents()
+        self.assertFalse(spin.decrease.isEnabled())
+        QTest.mouseClick(spin.increase,Qt.MouseButton.LeftButton)
+        self.assertEqual(spin.value(),1)
+        QTest.keyClick(spin,Qt.Key.Key_Up)
+        self.assertEqual(spin.value(),2)
+        self.assertFalse(spin.increase.isEnabled())
+        spin.close()
 
     def test_distinct_brush_previews_and_eraser_options(self):
         seen=[]
@@ -105,6 +150,77 @@ class DialogTests(unittest.TestCase):
         self.w.canvas.set_image(dialog.output)
         self.assertEqual(self.w.canvas.image.pixelColor(0,0).alpha(),0)
         self.w.canvas.undo();self.assertEqual(self.w.canvas.image,before)
+    def test_original_comparison_before_and_after_detection_is_read_only(self):
+        source=np.full((100,140,4),255,np.uint8);source[20:80,40:100,:3]=(90,30,120)
+        dialog=BackgroundDialog(image_from_rgba(source),self.w);dialog.show();APP.processEvents()
+        dialog.original_view.setChecked(True);APP.processEvents()
+        point=dialog.view.bounds.topLeft()+QPoint(4,4)
+        QTest.mouseClick(dialog.view,Qt.MouseButton.LeftButton,pos=point.toPoint())
+        self.assertIsNone(dialog.worker)
+        self.assertFalse(dialog.history)
+        dialog.detect_border();self.wait_job(dialog)
+        self.assertFalse(dialog.original_view.isChecked())
+        preview=dialog.output.copy();dialog.original_view.setChecked(True);APP.processEvents()
+        original=dialog.view.grab().toImage()
+        dialog.original_view.setChecked(False);APP.processEvents()
+        result=dialog.view.grab().toImage()
+        self.assertNotEqual(original,result)
+        self.assertEqual(dialog.output,preview)
+        self.assertTrue(np.array_equal(dialog.rgba,source))
+        dialog.reject()
+
+    def test_magic_selection_feather_and_manual_corrections(self):
+        source=np.full((100,140,4),255,np.uint8);source[20:80,40:100,:3]=(90,30,120)
+        dialog=BackgroundDialog(image_from_rgba(source),self.w)
+        dialog.magic((0,0));self.wait_job(dialog)
+        dialog.feather.setValue(4)
+        alpha=rgba_from_image(dialog.output)[:,:,3]
+        self.assertTrue(np.any((alpha>0)&(alpha<255)))
+        self.assertFalse(np.any(dialog.erase))
+        dialog.set_mode('keep');dialog.brush.setValue(1);dialog.snapshot();dialog.paint_mark((2,2),(2,2))
+        self.assertEqual(np.count_nonzero(dialog.keep),1)
+        self.assertEqual(rgba_from_image(dialog.output)[2,2,3],255)
+        dialog.set_mode('erase');dialog.snapshot();dialog.paint_mark((2,2),(2,2))
+        self.assertEqual(dialog.keep[2,2],0)
+        self.assertEqual(rgba_from_image(dialog.output)[2,2,3],0)
+        dialog.undo_edit();self.assertEqual(dialog.keep[2,2],255)
+        before=dialog.output.copy();dialog.reset_mask();dialog.undo_edit()
+        self.assertEqual(dialog.output,before)
+        dialog.reject()
+
+    def test_job_failure_and_model_download_restore_controls_without_history(self):
+        dialog=BackgroundDialog(self.w.canvas.image,self.w)
+        before=dialog.output.copy()
+        def failure(progress,cancel):raise RuntimeError('test failure')
+        dialog.start_job(failure);self.wait_job(dialog)
+        self.assertIn('test failure',dialog.status.text())
+        self.assertEqual(dialog.output,before)
+        self.assertFalse(dialog.history)
+        self.assertTrue(dialog.auto.isEnabled())
+        dialog.start_job(lambda progress,cancel:('model','test model'),download=True)
+        self.wait_job(dialog)
+        self.assertFalse(dialog.history)
+        self.assertEqual(dialog.output,before)
+        self.assertIsNone(dialog.worker)
+        dialog.reject()
+
+    def test_refine_marks_and_zoom_do_not_change_original(self):
+        source=np.full((100,140,4),255,np.uint8);source[20:80,40:100,:3]=(90,30,120)
+        dialog=BackgroundDialog(image_from_rgba(source),self.w);dialog.show();APP.processEvents()
+        dialog.detect_border();self.wait_job(dialog)
+        dialog.brush.setValue(5);dialog.set_mode('keep');dialog.snapshot();dialog.paint_mark((60,50),(65,50))
+        dialog.set_mode('erase');dialog.snapshot();dialog.paint_mark((5,5),(10,5))
+        dialog.refine_marked();self.wait_job(dialog)
+        self.assertEqual(rgba_from_image(dialog.output)[50,60,3],255)
+        self.assertEqual(rgba_from_image(dialog.output)[5,5,3],0)
+        preview=dialog.output.copy();dialog.toggle_zoom();APP.processEvents()
+        self.assertAlmostEqual(dialog.view.scale,1,places=4)
+        dialog.preview_zoom=20;dialog.view.update();APP.processEvents()
+        dialog.view.grab()
+        self.assertEqual(dialog.output,preview)
+        self.assertTrue(np.array_equal(dialog.rgba,source))
+        dialog.reject()
+
     def test_cancel_during_job_never_changes_source(self):
         before=self.w.canvas.image.copy();dialog=BackgroundDialog(before,self.w);dialog.show()
         dialog.start_job(lambda progress,cancel:(time.sleep(.05),np.zeros((before.height(),before.width()),np.uint8))[1])

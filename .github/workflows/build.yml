@@ -60,4 +60,9 @@ jobs:
       - name: Publish Linux packages together
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" artifacts/LinuxPaint-* --title "Linux Paint ${{ github.ref_name }}" --notes-file RELEASE_NOTES.md --verify-tag
+        run: |
+          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
+            echo "Release ${{ github.ref_name }} is already published; keeping its verified packages."
+          else
+            gh release create "${{ github.ref_name }}" artifacts/LinuxPaint-* --title "Linux Paint ${{ github.ref_name }}" --notes-file RELEASE_NOTES.md --verify-tag
+          fi

@@ -59,6 +59,27 @@ class CutoutTests(unittest.TestCase):
         result=compose(source,mask,decontaminate=True)
         self.assertTrue(np.array_equal(result[2,2,:3],source[2,2,:3]))
 
+    def test_edges_preserve_subject_touching_the_image_boundary(self):
+        source=np.full((120,160,4),255,np.uint8)
+        source[:90,60:100,:3]=(90,40,140)
+        alpha=border_alpha(source,12)
+        self.assertEqual(alpha[0,80],255)
+        self.assertEqual(alpha[60,80],255)
+        self.assertEqual(alpha[0,0],0)
+
+    def test_transparent_border_never_removes_opaque_subject(self):
+        source=np.zeros((60,80,4),np.uint8)
+        source[10:50,20:60]=(100,30,150,255)
+        alpha=border_alpha(source,12)
+        self.assertEqual(alpha[30,40],255)
+        self.assertEqual(compose(source,alpha)[0,0,3],0)
+
+    def test_shift_expands_and_contracts_in_the_expected_direction(self):
+        alpha=np.zeros((30,30),np.uint8);alpha[10:20,10:20]=255
+        source=np.full((30,30,4),255,np.uint8)
+        area=lambda shift:np.count_nonzero(compose(source,alpha,shift=shift)[:,:,3])
+        self.assertLess(area(-2),area(0));self.assertGreater(area(2),area(0))
+
     def test_invalid_click_has_clear_error(self):
         with self.assertRaises(ValueError):magic_region(self.rgba[:,:,:3],(-1,4),20)
 

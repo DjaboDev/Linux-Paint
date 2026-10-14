@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt, QPointF, QRectF, Signal, QThread
 from PySide6.QtGui import QPainter, QColor, QPen, QPixmap
 from PySide6.QtWidgets import (QDialog,QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,
     QToolButton,QButtonGroup,QSlider,QSpinBox,QCheckBox,QDialogButtonBox,QProgressBar)
+from .modern_widgets import ModernDialog as QDialog, ModernSpinBox as QSpinBox
 from .cutout import (rgba_from_image,image_from_rgba,border_alpha,magic_region,grabcut_alpha,
                      compose,ai_alpha,model_path,download_model)
 
@@ -26,31 +27,33 @@ class CutoutView(QWidget):
         super().__init__();self.dialog=dialog;self.setMinimumSize(360,300)
         self.mode='magic';self.last=None;self.cursor_pos=None;self.pan=QPointF();self.pan_anchor=None
         self.setMouseTracking(True);self.setCursor(Qt.CursorShape.CrossCursor)
-        self.pixmap=QPixmap();self.bounds=QRectF();self.scale=1
+        self.pixmap=QPixmap();self.original_pixmap=QPixmap.fromImage(image_from_rgba(dialog.rgba));self.bounds=QRectF();self.scale=1
 
     def set_image(self,image):self.pixmap=QPixmap.fromImage(image);self.update()
 
     def paintEvent(self,event):
         p=QPainter(self);p.fillRect(self.rect(),QColor('#191919' if self.dialog.dark else '#d9d9d9'))
         if self.pixmap.isNull():p.end();return
-        self.scale=min((self.width()-24)/self.pixmap.width(),(self.height()-24)/self.pixmap.height())*self.dialog.preview_zoom
+        fit=min((self.width()-24)/self.pixmap.width(),(self.height()-24)/self.pixmap.height())
+        self.scale=1. if self.dialog.preview_zoom is None else fit*self.dialog.preview_zoom
         w,h=self.pixmap.width()*self.scale,self.pixmap.height()*self.scale
         self.bounds=QRectF((self.width()-w)/2+self.pan.x(),(self.height()-h)/2+self.pan.y(),w,h)
         p.save();p.setClipRect(self.bounds)
         bg=self.dialog.background
         if bg=='checker':
-            for y in range(int(self.bounds.top()),int(self.bounds.bottom())+16,16):
-                for x in range(int(self.bounds.left()),int(self.bounds.right())+16,16):
+            visible=self.bounds.intersected(QRectF(self.rect()))
+            for y in range(int(visible.top())//16*16,int(visible.bottom())+16,16):
+                for x in range(int(visible.left())//16*16,int(visible.right())+16,16):
                     p.fillRect(QRectF(x,y,16,16),QColor('#777777' if (x//16+y//16)%2 else '#aaaaaa'))
         else:p.fillRect(self.bounds,QColor(bg))
         p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         if self.dialog.original_view.isChecked():
-            p.drawImage(self.bounds,image_from_rgba(self.dialog.rgba))
+            p.drawPixmap(self.bounds,self.original_pixmap,QRectF(self.original_pixmap.rect()))
         else:p.drawPixmap(self.bounds,self.pixmap,QRectF(self.pixmap.rect()))
         if self.dialog.show_marks.isChecked() and not self.dialog.original_view.isChecked():
             p.drawImage(self.bounds,self.dialog.mark_image)
         p.restore()
-        if self.cursor_pos is not None and self.mode!='magic':
+        if self.cursor_pos is not None and self.mode!='magic' and not self.dialog.original_view.isChecked():
             r=self.dialog.brush.value()*self.scale/2
             p.setPen(QPen(QColor('#ffffff'),2));p.setBrush(Qt.BrushStyle.NoBrush)
             p.drawEllipse(self.cursor_pos,max(2,r),max(2,r))
@@ -66,6 +69,7 @@ class CutoutView(QWidget):
         if event.button()==Qt.MouseButton.MiddleButton:
             self.pan_anchor=event.position();return
         if event.button()!=Qt.MouseButton.LeftButton:return
+        if self.dialog.original_view.isChecked():return
         point=self.image_point(event.position())
         if point is None:return
         if self.mode=='magic':self.magic_clicked.emit(point)
@@ -86,7 +90,9 @@ class CutoutView(QWidget):
         self.last=None
 
     def wheelEvent(self,event):
-        self.dialog.preview_zoom=max(.25,min(20,self.dialog.preview_zoom*(1.2 if event.angleDelta().y()>0 else 1/1.2)))
+        fit=min((self.width()-24)/self.pixmap.width(),(self.height()-24)/self.pixmap.height())
+        zoom=1/fit if self.dialog.preview_zoom is None else self.dialog.preview_zoom
+        self.dialog.preview_zoom=max(.25,min(20,zoom*(1.2 if event.angleDelta().y()>0 else 1/1.2)))
         self.update();event.accept()
 
     def leaveEvent(self,event):self.cursor_pos=None;self.update()
@@ -94,7 +100,7 @@ class CutoutView(QWidget):
 class BackgroundDialog(QDialog):
     def __init__(self,image,parent=None):
         super().__init__(parent)
-        self.setWindowTitle(tr('Remover fundo'));self.resize(1100,760)
+        self.setWindowTitle(tr('Remover fundo'));self.resize(1100,800);self.setSizeGripEnabled(True)
         self.dark=getattr(parent,'dark_mode',True)
         self.rgba=rgba_from_image(image);h,w=self.rgba.shape[:2]
         self.alpha=np.full((h,w),255,np.uint8);self.keep=np.zeros((h,w),np.uint8);self.erase=self.keep.copy()
@@ -128,16 +134,17 @@ class BackgroundDialog(QDialog):
         tools.addStretch();self.show_marks=QCheckBox(tr('Mostrar marcações'));self.show_marks.setChecked(True);tools.addWidget(self.show_marks)
         self.view=CutoutView(self);layout.addWidget(self.view,1)
         self.view.magic_clicked.connect(self.magic);self.view.stroke_started.connect(self.snapshot);self.view.stroke.connect(self.paint_mark)
-        self.original_view.toggled.connect(lambda _:self.view.update());self.show_marks.toggled.connect(lambda _:self.view.update())
+        self.original_view.toggled.connect(self.original_toggled);self.show_marks.toggled.connect(lambda _:self.view.update())
         bottom=QHBoxLayout();layout.addLayout(bottom)
         for bg,label in [('checker','Transparência'),('#ffffff','Branco'),('#181818','Escuro')]:
             b=QPushButton(tr(label));b.clicked.connect(lambda checked=False,c=bg:self.set_background(c));bottom.addWidget(b)
         zoom=QPushButton(tr('Zoom 100% / Ajustar'));zoom.clicked.connect(self.toggle_zoom);bottom.addWidget(zoom)
         self.halo=QCheckBox(tr('Reduzir halo'));self.halo.setChecked(True);bottom.addWidget(self.halo)
-        bottom.addStretch();bottom.addWidget(QLabel(tr('Suavizar borda')))
-        self.feather=QSpinBox();self.feather.setRange(0,20);self.feather.setSuffix(' px');bottom.addWidget(self.feather)
-        bottom.addWidget(QLabel(tr('Expandir / retrair')))
-        self.shift=QSpinBox();self.shift.setRange(-20,20);self.shift.setSuffix(' px');bottom.addWidget(self.shift)
+        bottom.addStretch()
+        edges=QHBoxLayout();layout.addLayout(edges);edges.addStretch();edges.addWidget(QLabel(tr('Suavizar borda')))
+        self.feather=QSpinBox();self.feather.setRange(0,20);self.feather.setSuffix(' px');edges.addWidget(self.feather)
+        edges.addSpacing(16);edges.addWidget(QLabel(tr('Expandir / retrair')))
+        self.shift=QSpinBox();self.shift.setRange(-20,20);self.shift.setSuffix(' px');edges.addWidget(self.shift)
         self.feather.valueChanged.connect(self.refresh);self.shift.valueChanged.connect(self.refresh);self.halo.toggled.connect(self.refresh)
         self.status=QLabel(tr('A imagem original só será alterada ao clicar em Aplicar.'));self.status.setWordWrap(True);layout.addWidget(self.status)
         self.progress=QProgressBar();self.progress.hide();layout.addWidget(self.progress)
@@ -161,17 +168,24 @@ class BackgroundDialog(QDialog):
     def reset_mask(self):
         self.snapshot();self.alpha.fill(255);self.keep.fill(0);self.erase.fill(0);self.refresh()
 
-    def set_mode(self,mode):self.view.mode=mode
+    def original_toggled(self,checked):
+        self.view.last=None
+        self.view.setCursor(Qt.CursorShape.ArrowCursor if checked else Qt.CursorShape.CrossCursor)
+        self.view.update()
+
+    def set_mode(self,mode):
+        self.original_view.setChecked(False)
+        self.view.last=None;self.view.mode=mode
     def set_background(self,color):self.background=color;self.view.update()
     def toggle_zoom(self):
-        fit=min((self.view.width()-24)/self.rgba.shape[1],(self.view.height()-24)/self.rgba.shape[0])
-        self.preview_zoom=1/fit if self.preview_zoom==1 else 1;self.view.pan=QPointF();self.view.update()
+        self.preview_zoom=1 if self.preview_zoom is None else None
+        self.view.pan=QPointF();self.view.update()
 
     def paint_mark(self,start,end):
         target,other=(self.keep,self.erase) if self.view.mode=='keep' else (self.erase,self.keep)
         width=self.brush.value()
-        cv2.line(target,start,end,255,width);cv2.circle(target,end,max(1,width//2),255,-1)
-        cv2.line(other,start,end,0,width);cv2.circle(other,end,max(1,width//2),0,-1)
+        cv2.line(target,start,end,255,width);cv2.circle(target,end,width//2,255,-1)
+        cv2.line(other,start,end,0,width);cv2.circle(other,end,width//2,0,-1)
         self.refresh()
 
     def magic(self,point):
@@ -193,7 +207,8 @@ class BackgroundDialog(QDialog):
         else:self.start_job(lambda progress,cancel:ai_alpha(self.rgba))
 
     def start_job(self,function,download=False):
-        if self.worker and self.worker.isRunning():return
+        if self.worker is not None:return
+        self.original_view.setChecked(False)
         self.set_busy(True);self.worker=SegmentationJob(function,self)
         self.worker.result.connect(self.job_result);self.worker.failed.connect(self.job_error)
         self.worker.progress.connect(self.job_progress);self.worker.finished.connect(self.job_finished)
@@ -214,7 +229,7 @@ class BackgroundDialog(QDialog):
             self.ai.setText(tr('Detectar com IA'));self.status.setText(tr('Modelo pronto. Clique em Detectar com IA para criar a prévia.'));return
         self.snapshot()
         if isinstance(value,tuple):
-            region=value[1];self.alpha[region]=0;self.erase[region & (self.keep==0)]=255
+            region=value[1];self.alpha[region]=0
         else:self.alpha=value
         self.refresh();self.status.setText(tr('Prévia pronta. Confira em fundo branco e escuro; marque Manter / Apagar para corrigir e use Refinar.'))
 
@@ -222,6 +237,8 @@ class BackgroundDialog(QDialog):
         if not self._closing:self.status.setText(tr('Não foi possível concluir: '+message+' A imagem original foi preservada.'))
 
     def job_finished(self):
+        worker=self.worker;self.worker=None
+        if worker is not None:worker.deleteLater()
         self.set_busy(False);self.undo.setEnabled(bool(self.history))
         if self._closing:super().reject()
 

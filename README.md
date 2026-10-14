@@ -23,8 +23,8 @@ The release series restarts at **0.4.0**, incorporating all previous improvement
 ### AppImage
 
 ```bash
-chmod +x LinuxPaint-0.4.0-linux-x86_64.AppImage
-./LinuxPaint-0.4.0-linux-x86_64.AppImage
+chmod +x LinuxPaint-0.4.1-linux-x86_64.AppImage
+./LinuxPaint-0.4.1-linux-x86_64.AppImage
 ```
 
 If FUSE is unavailable, add `--appimage-extract-and-run`.
@@ -37,9 +37,9 @@ Extract the archive and launch `LinuxPaint/LinuxPaint`. To add the application t
 
 ```bash
 # Debian / Ubuntu:
-sudo apt install ./LinuxPaint-0.4.0-linux-x86_64.deb
+sudo apt install ./LinuxPaint-0.4.1-linux-x86_64.deb
 # Fedora:
-sudo dnf install ./LinuxPaint-0.4.0-linux-x86_64.rpm
+sudo dnf install ./LinuxPaint-0.4.1-linux-x86_64.rpm
 ```
 
 These packages install the application under `/opt/linux-paint`. Avoid keeping both a system package and a tar.gz installation with duplicate desktop launchers.
@@ -48,7 +48,7 @@ These packages install the application under `/opt/linux-paint`. Avoid keeping b
 
 ```bash
 flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak install --user ./LinuxPaint-0.4.0-linux-x86_64.flatpak
+flatpak install --user ./LinuxPaint-0.4.1-linux-x86_64.flatpak
 flatpak run io.github.DjaboDev.LinuxPaint
 ```
 

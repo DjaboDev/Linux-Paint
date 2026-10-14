@@ -19,7 +19,9 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QComboBox,
     QVBoxLayout, QWidget, QMenu, QPlainTextEdit, QLineEdit, QWidgetAction)
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 
-from .modern_widgets import FontPreviewDelegate, text_background_icon, ModernStyle
+from .modern_widgets import (FontPreviewDelegate, text_background_icon, ModernStyle,
+    ModernSpinBox as QSpinBox, ModernMessageBox as QMessageBox, ModernDialog as QDialog,
+    ModernColorDialog as QColorDialog)
 from .i18n import tr
 from . import __version__
 from .modern_ui import APP_ID, application_icon, glyph, paint_button, paint_groups, HOME_GROUPS, apply_palette, ResizeOverlay
@@ -2420,7 +2422,18 @@ class PaintWindow(QMainWindow):
             QScrollBar::handle:vertical {{background:{'#666666' if dark else '#aaaaaa'};min-height:24px;border-radius:5px;}}
             QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical {{height:0;}}
             QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical {{background:transparent;}}
-            QDialog QPushButton {{background:{surface};border:1px solid {border};border-radius:6px;padding:6px 14px;}}
+            QDialog QPushButton {{background:{surface};border:1px solid {border};border-radius:8px;padding:8px 16px;min-height:20px;}}
+            QDialog QPushButton:hover {{background:{hover};}}
+            QDialog QPushButton[suggested="true"] {{background:#3584e4;color:white;border-color:#3584e4;font-weight:600;}}
+            QDialog QPushButton[suggested="true"]:hover {{background:#1c71d8;}}
+            QDialog QPushButton[destructive="true"] {{color:{'#ff7b86' if dark else '#a51d2d'};}}
+            QDialog QPushButton:disabled {{color:{'#888888' if dark else '#777777'};background:{surface};border-color:{border};}}
+            QDialog#ModernDialog {{border:1px solid {border};border-radius:12px;}}
+            QLabel#DialogHeading {{font-size:20px;font-weight:700;background:transparent;padding:4px 0;}}
+            QSpinBox[modernSpin="true"] {{padding:4px 64px 4px 10px;border:1px solid {border};border-radius:8px;min-height:26px;}}
+            QToolButton#NumericStepper {{background:transparent;border:0;border-radius:5px;font-size:20px;}}
+            QToolButton#NumericStepper:hover {{background:{hover};}}
+            QToolButton#NumericStepper:disabled {{color:{'#777777' if dark else '#999999'};}}
             QProgressBar {{border:1px solid {border};border-radius:4px;text-align:center;}}
             QProgressBar::chunk {{background:#3584e4;border-radius:3px;}}
         """)
