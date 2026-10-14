@@ -2639,16 +2639,16 @@ class PaintWindow(QMainWindow):
         self.fill_button.setMenu(self.fill_menu);self.fill_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.size_button=button('size',(705,0,52,81),'Size');menu=QMenu(self.size_button)
         self.size_button.setToolTip(tr('Espessura e dureza da borda — [ diminui, ] aumenta a espessura'))
-        menu.setStyleSheet("QMenu {icon-size:64px;} QMenu::item {padding:4px 22px 4px 8px;}")
+        menu.setStyleSheet("QMenu {icon-size:24px;} QMenu::item {padding:4px 22px 4px 8px;}")
         preset_title = QLabel(tr("Espessura do traço"))
         preset_title.setStyleSheet("font-weight:bold; padding:4px 10px; color:#888888; font-size:11px;")
         lbl_act = QWidgetAction(menu);lbl_act.setDefaultWidget(preset_title);menu.addAction(lbl_act)
         self.size_preset_actions = []
         for width in (1,3,5,8,12,20,32):
-            preview=QPixmap(64,22);preview.fill(Qt.GlobalColor.transparent)
+            preview=QPixmap(24,22);preview.fill(Qt.GlobalColor.transparent)
             painter=QPainter(preview);painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.setPen(QPen(QColor('#999999'),min(14,width),Qt.PenStyle.SolidLine,Qt.PenCapStyle.RoundCap))
-            painter.drawLine(8,11,56,11);painter.end()
+            painter.drawLine(7,11,17,11);painter.end()
             a=menu.addAction(QIcon(preview),tr(f'{width} px'));a.setCheckable(True);a.setChecked(width==self.canvas.stroke_width)
             a.triggered.connect(lambda checked=False,w=width:self.set_width(w,None))
             self.size_preset_actions.append(a)
@@ -2663,7 +2663,7 @@ class PaintWindow(QMainWindow):
         self.size_slider = QSlider(Qt.Orientation.Horizontal)
         self.size_slider.setRange(1, 200);self.size_slider.setValue(self.canvas.stroke_width)
         self.size_spinbox = QSpinBox()
-        self.size_spinbox.setRange(1, 200);self.size_spinbox.setValue(self.canvas.stroke_width);self.size_spinbox.setFixedWidth(78)
+        self.size_spinbox.setRange(1, 200);self.size_spinbox.setValue(self.canvas.stroke_width);self.size_spinbox.setFixedWidth(124)
         size_row.addWidget(self.size_slider);size_row.addWidget(self.size_spinbox)
         custom_layout.addLayout(size_row)
         def on_slider_change(val):

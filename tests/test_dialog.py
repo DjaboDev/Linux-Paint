@@ -122,6 +122,17 @@ class DialogTests(unittest.TestCase):
         self.assertEqual(dialog.currentColor().getRgb(),(90,40,130,75))
         dialog.reject()
 
+    def test_width_popup_fits_numeric_controls_and_tracks_slider_limits(self):
+        spin=self.w.size_spinbox;self.w.size_button.menu().popup(QPoint(20,20));APP.processEvents()
+        self.assertLess(spin.window().height(),500)
+        self.assertGreaterEqual(spin.width(),124)
+        for width in (1,200,12):
+            self.w.size_slider.setValue(width);APP.processEvents()
+            self.assertEqual(spin.value(),width)
+            self.assertEqual(spin.decrease.isEnabled(),width>1)
+            self.assertEqual(spin.increase.isEnabled(),width<200)
+        spin.window().hide()
+
     def test_distinct_brush_previews_and_eraser_options(self):
         seen=[]
         for style in ('Round','Square','Airbrush'):

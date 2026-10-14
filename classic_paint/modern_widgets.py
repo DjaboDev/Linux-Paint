@@ -39,6 +39,7 @@ class NumericSteppers(QObject):
         if event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
             self.decrease.setGeometry(self.spin.width()-60, 3, 28, self.spin.height()-6)
             self.increase.setGeometry(self.spin.width()-31, 3, 28, self.spin.height()-6)
+        if event.type() in (QEvent.Type.Resize, QEvent.Type.Show, QEvent.Type.Paint):
             self.update_steps()
         return False
 
