@@ -63,5 +63,8 @@ def main():
     with artifact.open('rb') as stream:digest=hashlib.file_digest(stream,'sha256').hexdigest()
     artifact.with_name(artifact.name+'.sha256').write_text(f'{digest}  {artifact.name}\n')
     print(artifact)
+    if system=="Linux" and target=="x86_64":
+        from appimage_build import make_appimage
+        print(make_appimage(ROOT,ROOT/"dist"/"LinuxPaint",releases,label))
 
 if __name__=='__main__':main()

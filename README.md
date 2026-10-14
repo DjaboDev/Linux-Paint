@@ -10,7 +10,7 @@ Os pacotes prontos estão em [Releases](https://github.com/DjaboDev/Linux-Paint/
 
 | Sistema | Pacote |
 |---|---|
-| Linux x86_64 | `.tar.gz`, com executável e instalador local |
+| Linux x86_64 | `.AppImage` portátil ou `.tar.gz`, com executável e instalador local |
 | Windows x86_64 | `.exe` portátil |
 | macOS Intel | `.dmg` x86_64 |
 | macOS Apple Silicon | `.dmg` arm64 |
@@ -19,7 +19,16 @@ Cada pacote é compilado e passa por um teste de inicialização no próprio sis
 
 ### Linux
 
-Extraia o pacote e execute `LinuxPaint/LinuxPaint`. Para adicionar ao menu de aplicativos:
+Para o AppImage, permita a execução do arquivo e abra-o:
+
+```bash
+chmod +x LinuxPaint-*-linux-x86_64.AppImage
+./LinuxPaint-0.4.1-linux-x86_64.AppImage
+```
+
+Se o sistema não disponibilizar FUSE, use `--appimage-extract-and-run` ao abrir. O AppImage contém o aplicativo e suas dependências; o modelo IA continua no cache local, compartilhado com a versão instalada.
+
+Para o `.tar.gz`, extraia o pacote e execute `LinuxPaint/LinuxPaint`. Para adicionar ao menu de aplicativos:
 
 ```bash
 cd LinuxPaint
@@ -35,11 +44,12 @@ No Windows, abra o `.exe`. No macOS, abra o `.dmg`, arraste **LinuxPaint.app** p
 ## Ferramentas
 
 - Barra superior unificada com arquivo, salvar, desfazer/refazer e controles da janela.
-- Tema escuro por padrão; opção de tema claro.
+- Tema escuro por padrão; opção de tema claro, com ribbon, menus e diálogos acompanhando a troca.
 - Ribbon com seleção, recorte, redimensionamento, rotação, lápis, pincéis, borracha, texto, formas e cores.
 - Pincéis redondo, quadrado e aerógrafo, com ícones que acompanham o tipo selecionado.
 - Espessura com exemplos visuais, ajuste numérico e dureza real; formato da borracha nas opções da ferramenta.
 - Réguas, grade, zoom, alças de resize com prévia visível e histórico de desfazer/refazer.
+- Seletor nativo de arquivos no Linux, com pastas e prévias oferecidas pelo desktop; abertura na pasta pessoal do usuário.
 - Abertura e exportação de imagens; transparência real em PNG e aviso antes de achatá-la em JPEG/BMP.
 
 ## Remover fundo
@@ -85,7 +95,7 @@ python build.py
 
 Os testes verificam desenho, histórico, cores, temas, pincéis, resize, máscaras, transparência, correções manuais, cancelamento e aplicação reversível. `check_ui.py` também renderiza a interface em QHD. A inferência IA é conferida separadamente com o modelo real; os testes normais não baixam pesos pela rede.
 
-`build.py` compila no sistema/arquitetura atual e executa `--self-test` no binário gerado, incluindo Qt, o ícone, OpenCV e ONNX Runtime. O workflow do GitHub produz os quatro pacotes e só publica uma release marcada `v*` quando todos os builds passam.
+`build.py` compila no sistema/arquitetura atual e executa `--self-test` no binário gerado, incluindo Qt, o ícone, OpenCV e ONNX Runtime. O workflow do GitHub produz os pacotes para os quatro destinos e o AppImage Linux e só publica uma release marcada `v*` quando todos os builds passam.
 
 ## Organização
 

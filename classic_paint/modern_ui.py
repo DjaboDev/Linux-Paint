@@ -91,7 +91,7 @@ def paint_button(button):
     selected=button.isCheckable() and button.isChecked()
     if selected and key not in ('color1','color2') or button.isDown() or button.underMouse():
         p.setPen(QPen(QColor('#3584e4' if selected else '#505050'),1))
-        p.setBrush(QColor('#28558b' if selected else ('#383838' if dark else '#e3e3e3')))
+        p.setBrush(QColor(('#28558b' if dark else '#d3e5fa') if selected else ('#383838' if dark else '#e3e3e3')))
         p.drawRoundedRect(QRectF(button.rect()).adjusted(1,1,-1,-1),5,5)
     f=QFont('Cantarell'); f.setPixelSize(11);p.setFont(f);p.setPen(QColor(fg))
     w,h=button.width(),button.height()
@@ -120,7 +120,9 @@ def paint_button(button):
             p.setPen(QPen(QColor('#62a8ef'),1.5,Qt.PenStyle.DashLine));p.setBrush(Qt.BrushStyle.NoBrush);p.drawRect(r.adjusted(2,2,-2,-2))
         else: glyph(p,key,r,fg)
         if key in LABELS and LABELS[key]:
-            p.setPen(QColor(fg));p.drawText(QRectF(0,44,w,18) if large else QRectF(26,0,w-27,h),Qt.AlignmentFlag.AlignCenter if large else Qt.AlignmentFlag.AlignVCenter,LABELS[key])
+            p.setPen(QColor(fg))
+            label_rect=QRectF(0,42,w,34) if large and '\n' in LABELS[key] else QRectF(0,44,w,18) if large else QRectF(26,0,w-27,h)
+            p.drawText(label_rect,Qt.AlignmentFlag.AlignCenter if large else Qt.AlignmentFlag.AlignVCenter,LABELS[key])
         if button.menu() is not None and not key.startswith('gallery'):
             cy=h-10 if large else (h-4 if tiny else h/2);cx=w/2 if large else w-5
             p.setPen(QPen(QColor(fg),1.3));p.drawPolyline(QPolygonF([QPointF(cx-3,cy-2),QPointF(cx,cy+1),QPointF(cx+3,cy-2)]))
