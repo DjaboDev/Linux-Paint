@@ -1,3 +1,4 @@
+from .i18n import tr
 """Original symbolic ribbon artwork and Linux desktop identity."""
 from pathlib import Path
 import math
@@ -60,7 +61,7 @@ GLYPHS = {
 def glyph(painter, key, rect, color):
     if key == 'text':
         painter.save(); painter.setPen(QColor(color)); f=QFont('Cantarell'); f.setPixelSize(round(rect.height())); painter.setFont(f)
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, 'A'); painter.restore(); return
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, tr('A')); painter.restore(); return
     body = GLYPHS.get(key)
     if key.startswith('arrow'):
         body='<path d="M2 8h12V3l8 9-8 9v-5H2z"/>'
@@ -106,12 +107,12 @@ def paint_button(button):
         p.fillRect(r,c);p.restore();p.setBrush(Qt.BrushStyle.NoBrush)
         p.setPen(QPen(QColor('#3584e4' if selected else '#777777'),2 if selected else 1));p.drawRoundedRect(r,2,2)
         if not key.startswith('swatch'):
-            p.setPen(QColor(fg));p.drawText(QRectF(0,44,w,20),Qt.AlignmentFlag.AlignCenter,LABELS[key])
+            p.setPen(QColor(fg));p.drawText(QRectF(0,44,w,20),Qt.AlignmentFlag.AlignCenter,tr(LABELS[key]))
     elif key=='colors':
         grad=QConicalGradient(QPointF(w/2,23),0)
         for pos,col in [(0,'#ed5575'),(.17,'#e7be51'),(.34,'#68b977'),(.51,'#55c3bc'),(.68,'#727ee4'),(.85,'#be7bdc'),(1,'#ed5575')]:grad.setColorAt(pos,QColor(col))
         p.setPen(Qt.PenStyle.NoPen);p.setBrush(grad);p.drawEllipse(QRectF(w/2-15,8,30,30));p.setPen(QColor(fg))
-        p.drawText(QRectF(0,42,w,32),Qt.AlignmentFlag.AlignCenter,LABELS[key])
+        p.drawText(QRectF(0,42,w,32),Qt.AlignmentFlag.AlignCenter,tr(LABELS[key]))
     else:
         large=h>55; tiny=w<=30
         size=30 if large else (19 if tiny else 16)
@@ -122,7 +123,7 @@ def paint_button(button):
         if key in LABELS and LABELS[key]:
             p.setPen(QColor(fg))
             label_rect=QRectF(0,42,w,34) if large and '\n' in LABELS[key] else QRectF(0,44,w,18) if large else QRectF(26,0,w-27,h)
-            p.drawText(label_rect,Qt.AlignmentFlag.AlignCenter if large else Qt.AlignmentFlag.AlignVCenter,LABELS[key])
+            p.drawText(label_rect,Qt.AlignmentFlag.AlignCenter if large else Qt.AlignmentFlag.AlignVCenter,tr(LABELS[key]))
         if button.menu() is not None and not key.startswith('gallery'):
             cy=h-10 if large else (h-4 if tiny else h/2);cx=w/2 if large else w-5
             p.setPen(QPen(QColor(fg),1.3));p.drawPolyline(QPolygonF([QPointF(cx-3,cy-2),QPointF(cx,cy+1),QPointF(cx+3,cy-2)]))
@@ -139,7 +140,7 @@ def paint_groups(widget,groups):
         p.setPen(QColor('#414141' if dark else '#d0d0d0'))
         if start:p.drawLine(start,8,start,widget.height()-8)
         p.setPen(QColor('#b8b8b8' if dark else '#626262'))
-        p.drawText(QRectF(start,86,end-start,18),Qt.AlignmentFlag.AlignCenter,label)
+        p.drawText(QRectF(start,86,end-start,18),Qt.AlignmentFlag.AlignCenter,tr(label))
     p.setPen(QColor('#383838' if dark else '#d0d0d0'));p.drawLine(0,widget.height()-1,widget.width(),widget.height()-1);p.end()
 
 HOME_GROUPS=[(0,123,'Área de transferência'),(123,298,'Imagem'),(298,389,'Ferramentas'),(389,452,'Pincéis'),(452,768,'Formas'),(768,830,'Espessura'),(830,1263,'Cores'),(1263,1350,'Recorte')]
@@ -184,4 +185,4 @@ class ResizeOverlay(QWidget):
         p.setPen(QPen(QColor('#8fc7ff'),1.5,Qt.PenStyle.DashLine));p.drawRect(rect)
         x=max(4,min(rect.right()-140,self.width()-150));y=max(4,min(rect.bottom()+8,self.height()-30))
         label=QRectF(x,y,140,24);p.fillRect(label,QColor('#28558b'))
-        p.setPen(QColor('#ffffff'));p.drawText(label,Qt.AlignmentFlag.AlignCenter,f'{w} × {h} px');p.end()
+        p.setPen(QColor('#ffffff'));p.drawText(label,Qt.AlignmentFlag.AlignCenter,tr(f'{w} × {h} px'));p.end()

@@ -9,3 +9,6 @@
 Esta 0.4.0 reinicia a numeração e reúne todas as melhorias anteriores: ícone próprio, barra superior unificada, ribbon compacta, temas claro/escuro corrigidos, seletor nativo de arquivos, remoção local de fundo por IA/seleção mágica/GrabCut, controles legíveis e prévia de resize.
 
 Distribuição exclusivamente Linux x86_64 em tar.gz, AppImage, Flatpak, deb e rpm. Windows e macOS deixam de ser distribuídos nesta fase. Testes de regressão cobrem espessura, dureza em todas as formas, cores, limites da tela e desfazer/refazer. Os pacotes passam por teste de inicialização e acompanham SHA256.
+
+- README fully translated into English; automatic English/Portuguese system-language interface, with English fallback for other locales.
+- Modern font previews, symbolic text-background options, themed combo boxes and scrollbars throughout the editor.
