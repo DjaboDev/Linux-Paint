@@ -1,112 +1,107 @@
-![Linux Paint](screenshots/screenshot_1.png)
-
 # Linux Paint
 
-A feature-rich, native Python/PySide6 clone of Microsoft Paint with the modern ribbon interface for Linux, with full support for transparent PNGs and extensive usability enhancements.
+Um editor de imagens com a familiaridade do Paint clássico, uma ribbon compacta e visual pensado para o desktop Linux. Desenvolvido em Python e Qt/PySide6, também disponível para Windows e macOS.
 
-> **Note & Credits:** This project is a fork of [Classic Paint](https://github.com/blankresearch/ClassicPaint) created by [Youssef](https://yousbot.com) ([blankresearch](https://github.com/blankresearch)). All credit for the foundational interface, tool implementations, and original reverse-engineering belongs to the original author.
+![Linux Paint no GNOME em modo escuro](screenshots/linux-paint-native-wayland.png)
 
----
+## Baixar
 
-## What's New in Linux Paint (Fork Improvements)
+Os pacotes prontos estão em [Releases](https://github.com/DjaboDev/Linux-Paint/releases/latest):
 
-This fork introduces extensive bug fixes, quality-of-life enhancements, and native transparent PNG support:
+| Sistema | Pacote |
+|---|---|
+| Linux x86_64 | `.tar.gz`, com executável e instalador local |
+| Windows x86_64 | `.exe` portátil |
+| macOS Intel | `.dmg` x86_64 |
+| macOS Apple Silicon | `.dmg` arm64 |
 
-### 🐧 GNOME & Linux Desktop Modernization
-- **Unified GNOME HeaderBar (CSD):** Client-Side Decorations (CSD) with modern window controls (Minimize, Maximize/Restore, Close), document title with dirty state indicator (`*`), hamburger menu (≡), and quick action buttons (Save, Undo, Redo).
-- **Adaptive Window Corners:** Follows GNOME's rounded window corners (12px radius) when floating/restored, switching to square edges (0px) seamlessly when maximized.
-- **Native Dark Mode as Default:** Elegant modern dark theme matching GNOME Adwaita Dark styling, with a one-click toggle to traditional Light Mode in the menu and "Exibir" tab.
-- **Active Brush Visual Indicator:** The "Pincéis" button in the Ribbon now dynamically displays the active brush icon (Round, Square, or Airbrush) with checkmarks inside the dropdown.
-- **Granular Stroke Size Control:** Size menu now includes both standard presets and a precision slider + spinbox (1 to 200 pixels) for fine tool control.
-- **Edge Hardness & Transition (Antialiasing) Slider:** Adjust edge softness/transition from 0% (smooth anti-aliased blend) to 100% (crisp, pixel-exact cut) for Pencil, Eraser, and Brushes.
-- **Eraser Shape Selection:** Choose between Circular (Round) and Square eraser shapes directly in the Size dropdown menu.
-- **Expanded Format Compatibility (WebP):** Native support for reading and saving WebP images with alpha transparency, alongside PNG, JPEG, BMP, and TIFF.
+Cada pacote é compilado e passa por um teste de inicialização no próprio sistema de destino. Os arquivos `.sha256` permitem verificar a integridade do download. Os pacotes ainda não têm assinatura comercial nem notarização Apple; no macOS, use **Abrir** pelo menu de contexto quando necessário.
 
-### 🎨 Transparency & PNG Overhaul
-- **Real-time Checkerboard Canvas:** Transparent areas are visually rendered with a classic alpha checkerboard grid underneath the image.
-- **New Transparent Canvas:** Create new transparent documents using `File -> New (Transparent)` or `Ctrl+Shift+N`.
-- **Erase to Transparent:** Right-click with the Eraser tool now erases pixels directly to transparent instead of only using the secondary color.
-- **Transparent Palette Swatch:** Slot 20 in the quick color palette is set to transparent with a checkerboard indicator.
-- **Full Alpha Channel Support:** The Color Dialog now includes full alpha channel controls (`ShowAlphaChannel`).
-- **Clear to Transparent:** Clear the canvas or current selection directly to transparent using `Ctrl+Alt+Delete` or via the Image menu.
-- **Transparency-Preserving Selections:** Moving or cutting selections preserves transparent backgrounds instead of flattening them to white.
+### Linux
 
-### ⚡ Bug Fixes & Usability
-- **Immediate Undo/Redo for Selections:** Fixed an issue where `Ctrl+Z` would not undo a moved selection until clicking outside the selection boundary.
-- **Ctrl + Mouse Wheel Zoom:** Zoom in and out smoothly centered directly on the cursor position (`25%` to `800%`).
-- **Magnifier Tool Centering:** Clicking with the Magnifier tool now automatically centers the clicked point inside the viewport.
-- **Drag-and-Drop:** Drag and drop image files (`.png`, `.jpg`, `.jpeg`, `.bmp`, `.webp`, `.tiff`, `.gif`) directly into the window from your file manager.
-- **Recent Pictures:** Integrated "Recent pictures" menu in the File menu, remembering your recent files across sessions.
-- **Window State Persistence:** Automatically saves and restores window dimensions and position between launches.
-- **Cleaner Status Bar & Rulers:** Coordinates in the status bar and ruler guideline indicators reset cleanly when the mouse leaves the canvas.
-- **Keyboard Shortcuts on Canvas:** Direct and reliable handling of `Ctrl+C` (Copy), `Ctrl+X` (Cut), `Ctrl+V` (Paste), and `Ctrl+A` (Select All) even when canvas has focus.
-- **Quick Stroke Size Adjustment:** Use `Ctrl + +` / `Ctrl + =` and `Ctrl + -` to quickly increase or decrease the brush, pencil, and eraser size.
-- **High-Resolution Icons:** Includes vector SVG and 256x256 icons for Linux desktop integration.
-
----
-
-## Features
-
-- Modern Ribbon toolbar inspired by Windows 7 Paint with unified GNOME HeaderBar.
-- Pencil, brushes (Round, Square, Airbrush), eraser (Round, Square), flood fill, color picker, text, and shapes.
-- Rectangular and free-form selection, moving, cropping, resizing, and rotation.
-- Clipboard support, full undo/redo history, and rich keyboard shortcuts.
-- Image loading, saving (PNG, JPEG, BMP, TIFF, WebP), and printing.
-
----
-
-## Installation & Running
-
-### Requirements
-- Python 3.10+ (tested on Python 3.11 and 3.12)
-- PySide6
-
-### Running from source
-
-Clone this repository and create a virtual environment:
+Extraia o pacote e execute `LinuxPaint/LinuxPaint`. Para adicionar ao menu de aplicativos:
 
 ```bash
-git clone https://github.com/DjaboDev/Linux-Paint.git
-cd Linux-Paint
-python3 -m venv .venv
+cd LinuxPaint
+./install.sh
+```
+
+O instalador não precisa de `sudo`. O ícone da janela e o lançador usam a mesma identidade no GNOME/Wayland e no X11.
+
+### Windows e macOS
+
+No Windows, abra o `.exe`. No macOS, abra o `.dmg`, arraste **LinuxPaint.app** para **Applications** e abra o aplicativo.
+
+## Ferramentas
+
+- Barra superior unificada com arquivo, salvar, desfazer/refazer e controles da janela.
+- Tema escuro por padrão; opção de tema claro.
+- Ribbon com seleção, recorte, redimensionamento, rotação, lápis, pincéis, borracha, texto, formas e cores.
+- Pincéis redondo, quadrado e aerógrafo, com ícones que acompanham o tipo selecionado.
+- Espessura com exemplos visuais, ajuste numérico e dureza real; formato da borracha nas opções da ferramenta.
+- Réguas, grade, zoom, alças de resize com prévia visível e histórico de desfazer/refazer.
+- Abertura e exportação de imagens; transparência real em PNG e aviso antes de achatá-la em JPEG/BMP.
+
+## Remover fundo
+
+![Editor de remoção de fundo](screenshots/remove-background.png)
+
+Abra uma imagem e clique em **Remover fundo**, à direita das cores na ribbon.
+
+1. Use **Detectar pelas bordas** para fundos simples, ou **Seleção mágica** e clique no fundo. A tolerância controla o quanto as cores podem variar; **Área conectada** evita apagar regiões isoladas da mesma cor.
+2. Para fotografias e fundos complexos, use **Baixar modelo IA**, depois **Detectar com IA**. O modelo BiRefNet General Lite é baixado uma vez, verificado e armazenado no cache local. As imagens são processadas no computador e não são enviadas a um serviço.
+3. Corrija o recorte com **Manter** e **Apagar**. **Refinar com marcações** usa GrabCut para ajustar a separação. Você pode desfazer ajustes e recomeçar.
+4. Confira em transparência, branco e fundo escuro. Ajuste suavização, expansão/retração e redução de halo quando necessário. Use a roda para ampliar e o botão do meio para deslocar a prévia.
+5. Clique em **Aplicar recorte** e salve em **PNG**. O editor mantém o original até a aplicação, e `Ctrl+Z` desfaz o resultado.
+
+A detecção automática é um ponto de partida: cabelos, transparências, sombras, objetos colados nas bordas e cores semelhantes entre fundo e objeto podem precisar de correções. As marcações manuais têm prioridade sobre a máscara automática. A suavização e o recorte nunca tornam opacos pixels que já eram transparentes.
+
+O processamento ocorre em uma tarefa separada. Cancelar preserva a imagem; uma inferência já iniciada pode levar alguns segundos para terminar. O modelo não acompanha o executável, evitando inflar os downloads; o primeiro uso de IA precisa de internet para baixar cerca de 220 MB. As ferramentas por cor e GrabCut funcionam sem esse download.
+
+## Rodar pelo código
+
+Use Python 3.12 em um ambiente virtual:
+
+```bash
+python3.12 -m venv .venv
+# Linux / macOS:
 source .venv/bin/activate
-pip install -r requirements.txt
+# Windows PowerShell:
+# .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
 python paint.py
 ```
 
-Open an image directly from terminal:
+Para instalar a versão por código no Linux, use `python install_linux.py` com o ambiente virtual ativo. Esse caminho usa o interpretador do ambiente: mantenha-o no local original. O instalador mantém o comando legado `classic-paint`, guarda uma cópia do lançador anterior e migra seu favorito no GNOME.
+
+## Testes e compilação
 
 ```bash
-python paint.py /path/to/image.png
-```
-
----
-
-## Desktop Integration on Linux
-
-To install the source checkout for your current Linux user, first install the requirements in a virtual environment, then run with that environment's Python:
-
-```bash
-python install_linux.py
-```
-
-The installer uses that Python interpreter, copies the app to `~/.local/share/LinuxPaint`, and creates `~/.local/bin/linux-paint`. Keep the virtual environment at its original location. It installs the approved violet/crimson/blue icon and the `io.github.DjaboDev.LinuxPaint.desktop` launcher. The legacy `classic-paint` command continues to work. An existing legacy launcher is backed up and hidden; an existing GNOME favorite is migrated to the new launcher ID.
-
-The application uses the same desktop ID on Wayland and `LinuxPaint` as its X11 WM class. This allows GNOME to associate the running window with its launcher instead of displaying a generic gear icon.
-
-### Modern ribbon validation
-
-The header and ribbon use original symbolic artwork instead of a recolored screenshot of the Windows interface. The Home ribbon keeps a fixed content width of 1263 px, leaving the remaining area free on QHD displays. Dark mode is the default for new settings; a user's existing theme choice is preserved. Both light and dark styles remain available.
-
-```bash
+python -m unittest discover -v
 python smoke.py
 python check_ui.py
+python build.py
 ```
 
-`check_ui.py` exercises drawing, header undo/redo, colors, shapes, themes, tabs and small/QHD layouts with isolated settings, then renders the actual Qt interface to `screenshots/linux-paint-modern-qhd.png`. A rendered mockup is not a GTK application: Linux Paint retains PySide6/Qt and follows the approved GNOME visual direction.
+Os testes verificam desenho, histórico, cores, temas, pincéis, resize, máscaras, transparência, correções manuais, cancelamento e aplicação reversível. `check_ui.py` também renderiza a interface em QHD. A inferência IA é conferida separadamente com o modelo real; os testes normais não baixam pesos pela rede.
 
-## Attribution & License
+`build.py` compila no sistema/arquitetura atual e executa `--self-test` no binário gerado, incluindo Qt, o ícone, OpenCV e ONNX Runtime. O workflow do GitHub produz os quatro pacotes e só publica uma release marcada `v*` quando todos os builds passam.
 
-- **Original Project:** Forked from [blankresearch/ClassicPaint](https://github.com/blankresearch/ClassicPaint) by [Youssef](https://yousbot.com).
-- **Code License:** Python code is licensed under the MIT License.
-- **Artwork License:** Microsoft Paint and its original artwork belong to Microsoft Corporation. Artwork embedded in the original project is separately licensed and unaffiliated with Microsoft.
+## Organização
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `classic_paint/app.py` | Editor, canvas, histórico e eventos |
+| `classic_paint/modern_ui.py` | Ribbon simbólica, tema e identidade do aplicativo |
+| `classic_paint/cutout.py` | Máscaras, seleção por cor, GrabCut e inferência IA |
+| `classic_paint/cutout_dialog.py` | Prévia e ferramentas de correção do recorte |
+| `build.py` | Executáveis, teste empacotado e hashes |
+| `install_linux.py` / `linux/install-packaged.sh` | Integração por código / por pacote no Linux |
+
+## Créditos e licença
+
+Desenvolvimento do fork: [DjaboDev/Linux-Paint](https://github.com/DjaboDev/Linux-Paint). Base original: [blankresearch/ClassicPaint](https://github.com/blankresearch/ClassicPaint).
+
+Código do projeto sob licença MIT. O ícone e a ribbon atuais foram criados para Linux Paint. Recursos legados herdados do projeto original podem ter licença própria; veja [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Este projeto é independente da Microsoft.
+
+A remoção inteligente utiliza [OpenCV/GrabCut](https://docs.opencv.org/4.x/d8/d83/tutorial_py_grabcut.html), [BiRefNet](https://github.com/ZhengPeng7/BiRefNet) e [ONNX Runtime](https://onnxruntime.ai/). A origem do modelo e sua configuração são documentadas nos avisos de terceiros.

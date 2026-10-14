@@ -7,7 +7,7 @@ import random
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal, QSize, QEvent, QSettings
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal, QSize, QEvent, QSettings, QTranslator, QLibraryInfo
 from PySide6.QtGui import (QAction, QColor, QFont, QImage, QImageReader,
                           QIcon, QKeySequence, QPainter, QPainterPath, QPen, QPixmap, QPolygonF,
                           QTransform, QLinearGradient, QCursor, QTextDocument, QTextCursor,
@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QColorDialog, QComboBox,
     QVBoxLayout, QWidget, QMenu, QPlainTextEdit, QLineEdit, QWidgetAction)
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 
-from .modern_ui import APP_ID, application_icon, glyph, paint_button, paint_groups, HOME_GROUPS
+from .modern_ui import APP_ID, application_icon, glyph, paint_button, paint_groups, HOME_GROUPS, apply_palette, ResizeOverlay
 
 MAX_PIXELS = 32_000_000
 COLORS = ['#000000','#7f7f7f','#880015','#ed1c24','#ff7f27','#fff200',
@@ -498,6 +498,7 @@ class Canvas(QWidget):
     picked = Signal(QColor, bool)
     zoomed = Signal(int)
     selection_changed = Signal()
+    resize_preview_changed = Signal(object)
 
     def __init__(self):
         super().__init__()
@@ -792,11 +793,16 @@ class Canvas(QWidget):
                 p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
         width = 1 if self.tool == 'pencil' else self.stroke_width
         if self.tool == 'eraser':
-            width = max(4, width * 3)
+            width = max(1, width)
             shape = getattr(self, 'eraser_shape', 'round')
             cap = Qt.PenCapStyle.RoundCap if shape == 'round' else Qt.PenCapStyle.SquareCap
         else:
             cap = Qt.PenCapStyle.SquareCap if self.brush_style == 'Square' else Qt.PenCapStyle.RoundCap
+        hardness=getattr(self,'hardness',100)
+        if hardness<100 and self.tool in ('brush','eraser') and not (self.tool=='brush' and self.brush_style=='Airbrush'):
+            from .brushes import soft_stroke
+            square=(self.tool=='eraser' and getattr(self,'eraser_shape','round')=='square') or (self.tool=='brush' and self.brush_style=='Square')
+            soft_stroke(p,a,b,color,width,hardness,square);p.end();return
         p.setPen(QPen(color, width, Qt.PenStyle.SolidLine, cap, Qt.PenJoinStyle.RoundJoin))
         if self.brush_style == 'Airbrush' and self.tool == 'brush':
             p.setPen(QPen(color, 1))
@@ -938,6 +944,7 @@ class Canvas(QWidget):
         if axes is not None and event.button()==Qt.MouseButton.LeftButton:
             self.commit_selection()
             self.resize_drag=True;self.resize_axes=axes;self.original_size=(w,h);self.resize_origin=QPointF(event.position())
+            self.resize_preview_changed.emit((w,h))
             self.update_pointer(event.position());return
         if not self.image.rect().contains(point):return
         self.dragging = True
@@ -982,6 +989,12 @@ class Canvas(QWidget):
 
     def mouseMoveEvent(self, event):
         self.update_pointer(event.position())
+        if self.resize_drag:
+            delta=(event.position()-self.resize_origin)/self.zoom
+            w=max(1,self.original_size[0]+round(delta.x())) if self.resize_axes[0] else self.original_size[0]
+            h=max(1,self.original_size[1]+round(delta.y())) if self.resize_axes[1] else self.original_size[1]
+            if w*h<=MAX_PIXELS:self.resize_preview_changed.emit((w,h))
+            return
         point = self.document_point(event)
         self.position.emit(f'{point.x()}, {point.y()} px')
         if not self.dragging:
@@ -1018,6 +1031,7 @@ class Canvas(QWidget):
             w = max(1, self.original_size[0]+round(delta.x())) if self.resize_axes[0] else self.original_size[0]
             h = max(1, self.original_size[1]+round(delta.y())) if self.resize_axes[1] else self.original_size[1]
             self.resize_drag = False
+            self.resize_preview_changed.emit(None)
             if (w,h)!=self.original_size and w * h <= MAX_PIXELS:
                 self.resize_document(w, h, scale=False)
         was_moving = self.moving
@@ -1186,7 +1200,7 @@ class Canvas(QWidget):
         tool=self.tool
         if tool=='text':return QCursor(Qt.CursorShape.IBeamCursor)
         if tool in ('brush','eraser'):
-            if tool=='eraser':size,shape=max(4,self.stroke_width*3),getattr(self, 'eraser_shape', 'round')
+            if tool=='eraser':size,shape=max(1,self.stroke_width),getattr(self, 'eraser_shape', 'round')
             elif self.brush_style=='Airbrush':size,shape=max(3,self.stroke_width*2)*2,'round'
             else:size,shape=self.stroke_width,'square' if self.brush_style=='Square' else 'round'
             size=min(128,round(size*self.zoom))
@@ -1384,6 +1398,8 @@ class Workspace(QScrollArea):
         self.canvas.changed.connect(self.update_rulers)
         self.canvas.position.connect(self.pointer_changed)
         self.apply_theme(True)
+        self.resize_overlay=ResizeOverlay(self)
+        self.canvas.resize_preview_changed.connect(self.resize_overlay.set_target)
 
     def apply_theme(self, dark):
         if dark:
@@ -1728,7 +1744,7 @@ class ReferenceRibbonButton(QToolButton):
     def mousePressEvent(self,event):
         if self.color is not None and event.button()==Qt.MouseButton.RightButton:
             self.window().set_color(self.color,True);event.accept();return
-        if self.menu() is not None and self.popupMode()==QToolButton.ToolButtonPopupMode.MenuButtonPopup and event.button()==Qt.MouseButton.LeftButton and event.position().y()>=self.height()-20:
+        if self.menu() is not None and self.popupMode()==QToolButton.ToolButtonPopupMode.MenuButtonPopup and event.button()==Qt.MouseButton.LeftButton and (event.position().y()>=self.height()-20 if self.height()>55 else event.position().x()>=self.width()-8):
             self.showMenu();event.accept();return
         super().mousePressEvent(event)
 
@@ -1778,8 +1794,8 @@ class MirrorRibbonButton(ReferenceRibbonButton):
 
 class ReferenceHomeRibbon(QWidget):
     def __init__(self):
-        super().__init__();self.setMinimumSize(1263,108)
-    def minimumSizeHint(self):return QSize(1263,108)
+        super().__init__();self.setMinimumSize(1350,108)
+    def minimumSizeHint(self):return QSize(1350,108)
     def paintEvent(self,event):
         paint_groups(self, HOME_GROUPS)
 
@@ -1989,8 +2005,14 @@ class PaintWindow(QMainWindow):
 
     def apply_theme_stylesheet(self):
         dark = getattr(self, 'dark_mode', True)
+        apply_palette(dark)
         if dark:
             self.setStyleSheet("""
+                QDialog, QMessageBox, QColorDialog {background:#282828; color:#eeeeec;}
+                QLineEdit, QPlainTextEdit, QTextEdit {background:#202020; color:#eeeeec; border:1px solid #505050; border-radius:4px; padding:4px;}
+                QDialog QPushButton, QMessageBox QPushButton {background:#353535; color:#eeeeec; border:1px solid #555555; padding:6px 14px;}
+                QDialog QPushButton:hover, QMessageBox QPushButton:hover {background:#454545;}
+                QDialog QLabel {background:transparent;}
                 QMainWindow {
                     background: transparent;
                 }
@@ -2371,7 +2393,7 @@ class PaintWindow(QMainWindow):
         self.action('clear_transparent', 'Clear to transparent', lambda: self.canvas.set_image(blank(self.canvas.image.width(), self.canvas.image.height(), QColor(0,0,0,0))), 'Ctrl+Alt+Delete', image)
         help_menu = self.menuBar().addMenu('Help')
         self.action('about', 'Sobre o Linux Paint', lambda: QMessageBox.about(self, 'Linux Paint',
-            '<b>Linux Paint 0.3</b><br>'
+            '<b>Linux Paint 0.4.0</b><br>'
             'Editor gráfico com visual moderno e integração com o GNOME / Linux.<br><br>'
             '<b>Desenvolvimento e melhorias:</b> <a href="https://github.com/DjaboDev/Linux-Paint">DjaboDev/Linux-Paint</a><br>'
             '<b>Baseado em:</b> Classic Paint por <a href="https://github.com/blankresearch/ClassicPaint">blankresearch</a><br><br>'
@@ -2478,6 +2500,15 @@ class PaintWindow(QMainWindow):
         for i,key in enumerate(('pencil','bucket','text','eraser','picker','magnifier')):
             rect=(267+(i%3)*27,10 if i<3 else 46,27,26)
             self.tool_buttons[key]=button(key,rect,key.title(),lambda checked=False,k=key:self.set_tool(k),True)
+        eraser=self.tool_buttons['eraser']
+        eraser.setToolTip('Borracha — seta: formato; botão direito: opções')
+        eraser_menu=QMenu(eraser)
+        for name,label in (('round','Redonda'),('square','Quadrada')):
+            a=eraser_menu.addAction(label);a.setCheckable(True);a.setChecked(name==self.canvas.eraser_shape)
+            a.triggered.connect(lambda checked=False,n=name:self.set_eraser_shape(n))
+        eraser.setMenu(eraser_menu);eraser.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        eraser.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        eraser.customContextMenuRequested.connect(lambda pos:eraser_menu.exec(eraser.mapToGlobal(pos)))
         brushes=button('brush',(359,0,50,81),'Brushes',lambda:self.set_tool('brush'),True,True)
         brushes.active_icon_key = 'brush_round'
         self.tool_buttons['brush']=brushes;menu=QMenu(brushes)
@@ -2485,7 +2516,7 @@ class PaintWindow(QMainWindow):
         for name in ('Round','Square','Airbrush'):
             icon_key = {'Round':'brush_round','Square':'brush_square','Airbrush':'brush_airbrush'}[name]
             label = {'Round':'Pincel Redondo','Square':'Pincel Quadrado','Airbrush':'Aerógrafo'}[name]
-            a=menu.addAction(ribbon_icon('brush'), label)
+            a=menu.addAction(ribbon_icon(icon_key), label)
             a.setCheckable(True)
             a.setChecked(name == getattr(self.canvas, 'brush_style', 'Round'))
             a.triggered.connect(lambda checked=False, n=name: self.set_brush_style(n))
@@ -2513,12 +2544,17 @@ class PaintWindow(QMainWindow):
             a.triggered.connect(lambda checked=False,v=value:self.set_fill_style(v))
         self.fill_button.setMenu(self.fill_menu);self.fill_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.size_button=button('size',(705,0,52,81),'Size');menu=QMenu(self.size_button)
-        preset_title = QLabel("Tamanhos padrão:")
+        menu.setStyleSheet("QMenu {icon-size:64px;} QMenu::item {padding:4px 22px 4px 8px;}")
+        preset_title = QLabel("Espessura do traço")
         preset_title.setStyleSheet("font-weight:bold; padding:4px 10px; color:#888888; font-size:11px;")
         lbl_act = QWidgetAction(menu);lbl_act.setDefaultWidget(preset_title);menu.addAction(lbl_act)
         self.size_preset_actions = []
         for width in (1,3,5,8,12,20,32):
-            a=menu.addAction(f'{width} px');a.setCheckable(True);a.setChecked(width==self.canvas.stroke_width)
+            preview=QPixmap(64,22);preview.fill(Qt.GlobalColor.transparent)
+            painter=QPainter(preview);painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setPen(QPen(QColor('#999999'),min(14,width),Qt.PenStyle.SolidLine,Qt.PenCapStyle.RoundCap))
+            painter.drawLine(8,11,56,11);painter.end()
+            a=menu.addAction(QIcon(preview),f'{width} px');a.setCheckable(True);a.setChecked(width==self.canvas.stroke_width)
             a.triggered.connect(lambda checked=False,w=width:self.set_width(w,None))
             self.size_preset_actions.append(a)
         menu.addSeparator()
@@ -2530,7 +2566,7 @@ class PaintWindow(QMainWindow):
         custom_layout.addWidget(cust_title)
         size_row = QHBoxLayout();size_row.setSpacing(8)
         self.size_slider = QSlider(Qt.Orientation.Horizontal)
-        self.size_slider.setRange(1, 100);self.size_slider.setValue(self.canvas.stroke_width)
+        self.size_slider.setRange(1, 200);self.size_slider.setValue(self.canvas.stroke_width)
         self.size_spinbox = QSpinBox()
         self.size_spinbox.setRange(1, 200);self.size_spinbox.setValue(self.canvas.stroke_width);self.size_spinbox.setFixedWidth(56)
         size_row.addWidget(self.size_slider);size_row.addWidget(self.size_spinbox)
@@ -2539,7 +2575,7 @@ class PaintWindow(QMainWindow):
             self.size_spinbox.blockSignals(True);self.size_spinbox.setValue(val);self.size_spinbox.blockSignals(False)
             self.set_width(val, None)
         def on_spinbox_change(val):
-            self.size_slider.blockSignals(True);self.size_slider.setValue(min(100, val));self.size_slider.blockSignals(False)
+            self.size_slider.blockSignals(True);self.size_slider.setValue(min(200, val));self.size_slider.blockSignals(False)
             self.set_width(val, None)
         self.size_slider.valueChanged.connect(on_slider_change)
         self.size_spinbox.valueChanged.connect(on_spinbox_change)
@@ -2553,14 +2589,6 @@ class PaintWindow(QMainWindow):
         self.hardness_slider.valueChanged.connect(on_hardness_change)
         hardness_row.addWidget(self.hardness_slider);hardness_row.addWidget(self.hardness_label)
         custom_layout.addLayout(hardness_row)
-        custom_layout.addWidget(QLabel("Formato da Borracha:"))
-        eraser_combo = QComboBox()
-        eraser_combo.addItem("Redonda (Circular)", "round");eraser_combo.addItem("Quadrada", "square")
-        if getattr(self.canvas, 'eraser_shape', 'round') == 'square': eraser_combo.setCurrentIndex(1)
-        def on_eraser_shape_change(idx):
-            self.canvas.eraser_shape = eraser_combo.currentData();self.canvas.update_pointer()
-        eraser_combo.currentIndexChanged.connect(on_eraser_shape_change)
-        custom_layout.addWidget(eraser_combo)
         cust_act = QWidgetAction(menu);cust_act.setDefaultWidget(custom_widget);menu.addAction(cust_act)
         self.size_button.setMenu(menu);self.size_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.primary_button=button('color1',(766,0,50,82),'Color 1',lambda:self.select_color_slot(1),True,True)
@@ -2582,6 +2610,7 @@ class PaintWindow(QMainWindow):
                     b.setEnabled(False);b.default_enabled=False
                 self.custom_swatches.append(b)
         button('colors',(1140,0,50,82),'Edit colors',lambda:self.choose_color(self.active_color==2))
+        button('background',(1198,0,74,82),'Remover fundo',self.remove_background)
         self.set_color(self.canvas.primary,False);self.set_color(self.canvas.secondary,True)
         return widget
 
@@ -2678,8 +2707,16 @@ class PaintWindow(QMainWindow):
         setattr(self.canvas,attribute,value)
         for action in menu.actions():action.setChecked(action.text().startswith('No ')==(not value))
 
+    def set_eraser_shape(self,shape):
+        self.canvas.eraser_shape=shape
+        self.set_tool('eraser')
+        for action in self.tool_buttons['eraser'].menu().actions():
+            action.setChecked(action.text()==('Redonda' if shape=='round' else 'Quadrada'))
+        self.canvas.update_pointer()
+
     def set_brush_style(self, style):
         self.canvas.brush_style = style
+        self.set_tool('brush')
         if hasattr(self, 'brush_actions'):
             for name, act in self.brush_actions.items():
                 act.setChecked(name == style)
@@ -2702,7 +2739,7 @@ class PaintWindow(QMainWindow):
                     action.setChecked(action.text() == f'{width} px')
         if hasattr(self, 'size_slider'):
             self.size_slider.blockSignals(True)
-            self.size_slider.setValue(min(100, width))
+            self.size_slider.setValue(min(200, width))
             self.size_slider.blockSignals(False)
         if hasattr(self, 'size_spinbox'):
             self.size_spinbox.blockSignals(True)
@@ -2844,8 +2881,18 @@ class PaintWindow(QMainWindow):
         else:self.canvas.primary=QColor(color);self.primary_button.set_color(color)
 
 
+    def remove_background(self):
+        from .cutout_dialog import BackgroundDialog
+        dialog=BackgroundDialog(self.canvas.composite(),self)
+        accepted=dialog.exec()==QDialog.DialogCode.Accepted
+        result=dialog.output if accepted else None
+        dialog.deleteLater()
+        if result is not None:
+            self.canvas.set_image(result)
+            self.statusBar().showMessage('Fundo removido. Salve em PNG para preservar a transparência. Ctrl+Z desfaz o recorte.',7000)
+
     def choose_color(self,secondary):
-        color=QColorDialog.getColor(self.canvas.secondary if secondary else self.canvas.primary,self,'Edit colors', QColorDialog.ColorDialogOption.ShowAlphaChannel)
+        color=QColorDialog.getColor(self.canvas.secondary if secondary else self.canvas.primary,self,'Editar cores', QColorDialog.ColorDialogOption.ShowAlphaChannel | QColorDialog.ColorDialogOption.DontUseNativeDialog)
         if color.isValid():
             self.set_color(color,secondary)
             index=next((i for i,b in enumerate(self.custom_swatches) if not b.isEnabled()),1)
@@ -2908,7 +2955,7 @@ class PaintWindow(QMainWindow):
     def confirm_unsaved(self):
         if not self.dirty:
             return True
-        answer = QMessageBox.question(self, 'Unsaved image', 'Save changes before continuing?',
+        answer = QMessageBox.question(self, 'Imagem não salva', 'Salvar alterações antes de continuar?',
             QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Save)
         if answer == QMessageBox.StandardButton.Save:
@@ -3054,6 +3101,13 @@ class PaintWindow(QMainWindow):
         self.canvas.commit_selection()
         image = self.canvas.image
         if path.suffix.lower() in ('.jpg', '.jpeg', '.bmp'):
+            if image.hasAlphaChannel():
+                from .cutout import rgba_from_image
+                if (rgba_from_image(image)[:,:,3]<255).any():
+                    answer=QMessageBox.question(self,'Formato sem transparência',
+                        'Este formato removerá a transparência, colocando um fundo branco. Continuar? Use Salvar como PNG para manter o recorte.',
+                        QMessageBox.StandardButton.Yes|QMessageBox.StandardButton.Cancel,QMessageBox.StandardButton.Cancel)
+                    if answer!=QMessageBox.StandardButton.Yes:return False
             flattened = blank(image.width(), image.height())
             painter = QPainter(flattened)
             painter.drawImage(0, 0, image)
@@ -3157,9 +3211,12 @@ class PaintWindow(QMainWindow):
 
 
 def main():
+    self_test='--self-test' in sys.argv
+    if self_test:os.environ['QT_QPA_PLATFORM']='offscreen'
     os.environ.setdefault("RESOURCE_NAME", "LinuxPaint")
     if sys.platform.startswith("linux") and os.environ.get("XDG_SESSION_TYPE") == "wayland":
         os.environ.setdefault("QT_QPA_PLATFORM", "wayland;xcb")
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs)
     app = QApplication(sys.argv)
     app.setApplicationName('LinuxPaint')
     app.setApplicationDisplayName('Linux Paint')
@@ -3167,8 +3224,22 @@ def main():
     app.setWindowIcon(application_icon())
     app.setOrganizationName('Linux Paint Community')
     app.setStyle('Fusion')
+    translator=QTranslator(app)
+    translator.load('qtbase_pt_BR',QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))
+    app.installTranslator(translator)
     window = PaintWindow()
     window.show()
+    if self_test:
+        import numpy as np
+        import cv2
+        import onnxruntime
+        onnxruntime.disable_telemetry_events()
+        from .cutout import magic_region
+        app.processEvents()
+        assert not window.windowIcon().isNull()
+        assert magic_region(np.full((8,8,3),255,np.uint8),(0,0),0).all()
+        print('Linux Paint self-test passed: window, icon, Qt, OpenCV and ONNX Runtime')
+        return
     # "Open with" / command line: linux-paint picture.png
     if len(sys.argv) > 1 and Path(sys.argv[1]).is_file():
         window.load_file_from_path(sys.argv[1])

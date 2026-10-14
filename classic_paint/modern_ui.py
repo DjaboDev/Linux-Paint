@@ -2,8 +2,9 @@
 from pathlib import Path
 import math
 from PySide6.QtCore import Qt, QRectF, QPointF
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPen, QPolygonF, QConicalGradient
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPen, QPolygonF, QConicalGradient, QPalette
 from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtWidgets import QApplication, QWidget
 
 APP_ID = "io.github.DjaboDev.LinuxPaint"
 
@@ -12,6 +13,11 @@ def application_icon():
 
 # Hand-authored symbolic SVG paths: no captured Windows artwork.
 GLYPHS = {
+    "brush_round": '<path d="M10 14L18 3q3-2 3 1l-8 12z"/><path d="M10 14q-6 1-6 7q8 1 9-5z" fill="currentColor"/>',
+    "brush_square": '<path d="M10 14L18 3q3-2 3 1l-8 12z"/><path d="M10 13l5 4-4 5-6-5z" fill="currentColor"/>',
+    "brush_airbrush": '<path d="M8 9h9v5H8z M13 9V5h4 M11 14v7h4v-7 M17 11h4"/><circle cx="4" cy="8" r=".7"/><circle cx="3" cy="12" r=".7"/><circle cx="4" cy="16" r=".7"/><circle cx="1" cy="10" r=".5"/><circle cx="1" cy="14" r=".5"/>',
+    "background": '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M4 17l6-7 5 5 4-4 M6 3v3 M3 6h3 M17 18l4 3 M21 18l-4 3"/>',
+
     "save": '<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M8 3v6h8V3 M8 21v-7h8v7"/>',
     "undo": '<path d="M8 4L3 9l5 5 M3 9h9q9 0 9 10"/>',
     "redo": '<path d="M16 4l5 5-5 5 M21 9h-9q-9 0-9 10"/>',
@@ -72,13 +78,14 @@ def glyph(painter, key, rect, color):
     svg=f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g fill="none" color="{color}" stroke="{color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">{body}</g></svg>'
     QSvgRenderer(svg.encode()).render(painter, rect)
 
-LABELS={'paste':'Colar','cut':'Recortar','copy':'Copiar','select':'Selecionar','crop':'Recortar','resize':'Redimensionar','rotate':'Girar','brush':'','outline':'Contorno','fill':'Preenchimento','size':'','color1':'Cor 1','color2':'Cor 2','colors':'Editar\ncores'}
+LABELS={'paste':'Colar','cut':'Recortar','copy':'Copiar','select':'Selecionar','crop':'Recortar','resize':'Redimensionar','rotate':'Girar','brush':'','outline':'Contorno','fill':'Preenchimento','size':'','color1':'Cor 1','color2':'Cor 2','colors':'Editar\ncores','background':'Remover\nfundo'}
 
 def paint_button(button):
     p=QPainter(button); p.setRenderHint(QPainter.RenderHint.Antialiasing)
     dark=getattr(button.window(),'dark_mode',True)
     fg='#eeeeec' if dark else '#303030'
     key=getattr(button,'icon_key',button.text().lower())
+    if key=='brush': key=getattr(button,'active_icon_key','brush_round')
     if hasattr(button,'twin'): key=getattr(button.twin,'icon_key',key)
     if not button.isEnabled(): p.setOpacity(.35)
     selected=button.isCheckable() and button.isChecked()
@@ -115,7 +122,7 @@ def paint_button(button):
         if key in LABELS and LABELS[key]:
             p.setPen(QColor(fg));p.drawText(QRectF(0,44,w,18) if large else QRectF(26,0,w-27,h),Qt.AlignmentFlag.AlignCenter if large else Qt.AlignmentFlag.AlignVCenter,LABELS[key])
         if button.menu() is not None and not key.startswith('gallery'):
-            cy=h-10 if large else h/2;cx=w/2 if large else w-7
+            cy=h-10 if large else (h-4 if tiny else h/2);cx=w/2 if large else w-5
             p.setPen(QPen(QColor(fg),1.3));p.drawPolyline(QPolygonF([QPointF(cx-3,cy-2),QPointF(cx,cy+1),QPointF(cx+3,cy-2)]))
     if button.hasFocus():
         p.setPen(QPen(QColor('#62a8ef'),1,Qt.PenStyle.DotLine));p.setBrush(Qt.BrushStyle.NoBrush);p.drawRoundedRect(QRectF(button.rect()).adjusted(2,2,-2,-2),4,4)
@@ -133,4 +140,46 @@ def paint_groups(widget,groups):
         p.drawText(QRectF(start,86,end-start,18),Qt.AlignmentFlag.AlignCenter,label)
     p.setPen(QColor('#383838' if dark else '#d0d0d0'));p.drawLine(0,widget.height()-1,widget.width(),widget.height()-1);p.end()
 
-HOME_GROUPS=[(0,123,'Área de transferência'),(123,298,'Imagem'),(298,389,'Ferramentas'),(389,452,'Pincéis'),(452,768,'Formas'),(768,830,'Espessura'),(830,1263,'Cores')]
+HOME_GROUPS=[(0,123,'Área de transferência'),(123,298,'Imagem'),(298,389,'Ferramentas'),(389,452,'Pincéis'),(452,768,'Formas'),(768,830,'Espessura'),(830,1263,'Cores'),(1263,1350,'Recorte')]
+
+
+def apply_palette(dark):
+    """Keep native Qt dialogs and disabled text consistent with the window theme."""
+    palette=QPalette()
+    colors={'Window':'#282828','WindowText':'#eeeeec','Base':'#202020','AlternateBase':'#303030',
+            'Text':'#eeeeec','Button':'#353535','ButtonText':'#eeeeec','Highlight':'#3584e4',
+            'HighlightedText':'#ffffff','ToolTipBase':'#353535','ToolTipText':'#ffffff','Link':'#78aeed'} if dark else {
+            'Window':'#f5f5f5','WindowText':'#303030','Base':'#ffffff','AlternateBase':'#eeeeee',
+            'Text':'#303030','Button':'#e8e8e8','ButtonText':'#303030','Highlight':'#3584e4',
+            'HighlightedText':'#ffffff','ToolTipBase':'#ffffff','ToolTipText':'#303030','Link':'#1c71d8'}
+    for name,color in colors.items():palette.setColor(getattr(QPalette.ColorRole,name),QColor(color))
+    for role in (QPalette.ColorRole.Text,QPalette.ColorRole.WindowText,QPalette.ColorRole.ButtonText):
+        palette.setColor(QPalette.ColorGroup.Disabled,role,QColor('#929292' if dark else '#888888'))
+    QApplication.instance().setPalette(palette)
+
+
+class ResizeOverlay(QWidget):
+    """Viewport overlay: canvas growth feedback must not be clipped by the canvas."""
+    def __init__(self,workspace):
+        super().__init__(workspace.viewport());self.workspace=workspace;self.target=None
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.hide()
+
+    def set_target(self,target):
+        self.target=target
+        self.setGeometry(self.parentWidget().rect());self.setVisible(target is not None)
+        self.raise_();self.update()
+
+    def paintEvent(self,event):
+        if self.target is None:return
+        canvas=self.workspace.canvas
+        origin=canvas.mapTo(self.parentWidget(),canvas.rect().topLeft())
+        w,h=self.target
+        rect=QRectF(origin.x(),origin.y(),w*canvas.zoom,h*canvas.zoom)
+        p=QPainter(self);p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(QPen(QColor('#111111'),3));p.drawRect(rect)
+        p.setPen(QPen(QColor('#8fc7ff'),1.5,Qt.PenStyle.DashLine));p.drawRect(rect)
+        x=max(4,min(rect.right()-140,self.width()-150));y=max(4,min(rect.bottom()+8,self.height()-30))
+        label=QRectF(x,y,140,24);p.fillRect(label,QColor('#28558b'))
+        p.setPen(QColor('#ffffff'));p.drawText(label,Qt.AlignmentFlag.AlignCenter,f'{w} × {h} px');p.end()

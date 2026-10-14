@@ -37,3 +37,8 @@ Desktop.ini
 *.log
 core
 core.*
+
+# Local model cache and QA downloads
+.qa-cache/
+qa-local/
+release/LinuxPaint-*
