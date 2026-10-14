@@ -1,84 +1,94 @@
-![Classic Paint screenshot 1](screenshots/screenshot_1.png)
+![Linux Paint](screenshots/screenshot_1.png)
 
-![Classic Paint screenshot 2](screenshots/screenshot_2.png)
+# Linux Paint
 
-# Classic Paint
+A feature-rich, native Python/PySide6 clone of Microsoft Paint with the modern ribbon interface for Linux, with full support for transparent PNGs and extensive usability enhancements.
 
-A Python clone of classic Microsoft Paint, recreating its familiar interface and drawing tools for macOS and Linux. Tested on both platforms.
+> **Note & Credits:** This project is a fork of [Classic Paint](https://github.com/blankresearch/ClassicPaint) created by [Youssef](https://yousbot.com) ([blankresearch](https://github.com/blankresearch)). All credit for the foundational interface, tool implementations, and original reverse-engineering belongs to the original author.
+
+---
+
+## What's New in Linux Paint (Fork Improvements)
+
+This fork introduces extensive bug fixes, quality-of-life enhancements, and native transparent PNG support:
+
+### 🎨 Transparency & PNG Overhaul
+- **Real-time Checkerboard Canvas:** Transparent areas are visually rendered with a classic alpha checkerboard grid underneath the image.
+- **New Transparent Canvas:** Create new transparent documents using `File -> New (Transparent)` or `Ctrl+Shift+N`.
+- **Erase to Transparent:** Right-click with the Eraser tool now erases pixels directly to transparent instead of only using the secondary color.
+- **Transparent Palette Swatch:** Slot 20 in the quick color palette is set to transparent with a checkerboard indicator.
+- **Full Alpha Channel Support:** The Color Dialog now includes full alpha channel controls (`ShowAlphaChannel`).
+- **Clear to Transparent:** Clear the canvas or current selection directly to transparent using `Ctrl+Alt+Delete` or via the Image menu.
+- **Transparency-Preserving Selections:** Moving or cutting selections preserves transparent backgrounds instead of flattening them to white.
+
+### ⚡ Bug Fixes & Usability
+- **Immediate Undo/Redo for Selections:** Fixed an issue where `Ctrl+Z` would not undo a moved selection until clicking outside the selection boundary.
+- **Ctrl + Mouse Wheel Zoom:** Zoom in and out smoothly centered directly on the cursor position (`25%` to `800%`).
+- **Magnifier Tool Centering:** Clicking with the Magnifier tool now automatically centers the clicked point inside the viewport.
+- **Drag-and-Drop:** Drag and drop image files (`.png`, `.jpg`, `.jpeg`, `.bmp`, `.webp`, `.tiff`, `.gif`) directly into the window from your file manager.
+- **Recent Pictures:** Integrated "Recent pictures" menu in the File menu, remembering your recent files across sessions.
+- **Window State Persistence:** Automatically saves and restores window dimensions and position between launches.
+- **Cleaner Status Bar & Rulers:** Coordinates in the status bar and ruler guideline indicators reset cleanly when the mouse leaves the canvas.
+- **Keyboard Shortcuts on Canvas:** Direct and reliable handling of `Ctrl+C` (Copy), `Ctrl+X` (Cut), `Ctrl+V` (Paste), and `Ctrl+A` (Select All) even when canvas has focus.
+- **Quick Stroke Size Adjustment:** Use `Ctrl + +` / `Ctrl + =` and `Ctrl + -` to quickly increase or decrease the brush, pencil, and eraser size.
+- **High-Resolution Icons:** Includes vector SVG and 256x256 icons for Linux desktop integration.
+
+---
 
 ## Features
 
-- Classic Paint interface with a ribbon toolbar and embedded icons.
+- Modern Ribbon toolbar inspired by Windows 7 Paint.
 - Pencil, brushes, eraser, flood fill, color picker, text, and shapes.
-- Selection, moving, cropping, resizing, and rotation.
-- Clipboard support, undo and redo, and keyboard shortcuts.
-- Image loading, saving, and printing.
+- Rectangular and free-form selection, moving, cropping, resizing, and rotation.
+- Clipboard support, full undo/redo history, and rich keyboard shortcuts.
+- Image loading, saving (PNG, JPEG, BMP, TIFF, WebP), and printing.
 
-## Download
+---
 
-Download the latest stable version from the [Releases page](https://github.com/blankresearch/ClassicPaint/releases/latest).
+## Installation & Running
 
-| Platform | Download |
-| --- | --- |
-| macOS — Intel | [Download DMG](https://github.com/blankresearch/ClassicPaint/releases/latest/download/ClassicPaint-darwin-x86_64.dmg) |
-| Linux — Intel/AMD 64-bit | [Download archive](https://github.com/blankresearch/ClassicPaint/releases/latest/download/ClassicPaint-linux-x86_64.tar.gz) |
+### Requirements
+- Python 3.10+ (tested on Python 3.11 and 3.12)
+- PySide6
 
-[View all releases](https://github.com/blankresearch/ClassicPaint/releases)
+### Running from source
 
-On macOS, open the DMG and drag **ClassicPaint.app** into **Applications**.
-
-On Linux, extract the archive and run:
+Clone this repository and create a virtual environment:
 
 ```bash
-tar -xzf ClassicPaint-linux-x86_64.tar.gz
-./ClassicPaint
-```
-## Run from source
-
-Use Python 3.11 and install the project dependencies:
-
-```bash
-python3.11 -m venv .venv
+git clone https://github.com/DjaboDev/Linux-Paint.git
+cd Linux-Paint
+python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 python paint.py
 ```
 
-Open an image directly:
+Open an image directly from terminal:
 
 ```bash
 python paint.py /path/to/image.png
 ```
 
-## Build standalone packages
+---
 
-Run the build script on the target operating system:
+## Desktop Integration on Linux
 
+To integrate Linux Paint with your desktop application menu:
+
+1. Copy the icons to your user icons directory:
 ```bash
-python build.py
+mkdir -p ~/.local/share/icons/hicolor/scalable/apps ~/.local/share/icons/hicolor/256x256/apps
+cp classic-paint.svg ~/.local/share/icons/hicolor/scalable/apps/classic-paint.svg
+cp classic-paint-256.png ~/.local/share/icons/hicolor/256x256/apps/classic-paint.png
 ```
 
-Packages are written to `release/`: a `.dmg` on macOS and a `.tar.gz` on Linux. Build separately for each operating system and processor architecture.
+2. Create a desktop launcher at `~/.local/share/applications/classic-paint.desktop`.
 
-## Project structure
+---
 
-| Path | Purpose |
-| --- | --- |
-| `paint.py` | Application launcher |
-| `classic_paint/app.py` | Interface, drawing tools, and embedded artwork |
-| `classic_paint/__init__.py` | Package metadata |
-| `classic_paint/__main__.py` | Module entry point |
-| `requirements.txt` | Application and packaging dependencies |
-| `build.py` | Standalone package builder |
-| `smoke.py` | Headless window initialization check |
-| `.github/workflows/build.yml` | Automated platform builds |
+## Attribution & License
 
-## Compatibility
-
-Tested on macOS and Linux. Compatibility depends on the operating system version, processor architecture, and Qt runtime requirements; testing does not establish support for every version or distribution.
-
-## Attribution
-
-An independent project, unaffiliated with Microsoft. Microsoft Paint and its original artwork belong to their respective owners. The supplied source identifies the Python code as MIT licensed and the embedded original artwork as separately licensed; the code license does not grant rights to that artwork.
-
-Made by [Youssef](https://yousbot.com) with ❤️
+- **Original Project:** Forked from [blankresearch/ClassicPaint](https://github.com/blankresearch/ClassicPaint) by [Youssef](https://yousbot.com).
+- **Code License:** Python code is licensed under the MIT License.
+- **Artwork License:** Microsoft Paint and its original artwork belong to Microsoft Corporation. Artwork embedded in the original project is separately licensed and unaffiliated with Microsoft.

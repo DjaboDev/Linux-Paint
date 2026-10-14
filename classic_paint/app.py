@@ -6,7 +6,7 @@ import random
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal, QSize, QEvent
+from PySide6.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal, QSize, QEvent, QSettings
 from PySide6.QtGui import (QAction, QColor, QFont, QImage, QImageReader,
                           QIcon, QKeySequence, QPainter, QPainterPath, QPen, QPixmap, QPolygonF,
                           QTransform, QLinearGradient, QCursor, QTextDocument, QTextCursor,
@@ -526,6 +526,7 @@ class Canvas(QWidget):
         self.moving = False
         self.resize_drag = False
         self.setMouseTracking(True)
+        self.setAcceptDrops(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.sync_size()
 
@@ -589,6 +590,8 @@ class Canvas(QWidget):
         self.modified()
 
     def undo(self):
+        self.dragging = False
+        self.moving = False
         self.commit_selection()
         if self.undo_stack:
             self.redo_stack.append(self.image.copy())
@@ -598,6 +601,8 @@ class Canvas(QWidget):
             self.modified()
 
     def redo(self):
+        self.dragging = False
+        self.moving = False
         self.commit_selection()
         if self.redo_stack:
             self.undo_stack.append(self.image.copy())
@@ -616,9 +621,23 @@ class Canvas(QWidget):
         return QPoint(int(event.position().x() / self.zoom),
                       int(event.position().y() / self.zoom))
 
+    @classmethod
+    def checker_pixmap(cls):
+        if not hasattr(cls, '_checker'):
+            pix = QPixmap(16, 16)
+            p = QPainter(pix)
+            p.fillRect(0, 0, 8, 8, QColor('#ffffff'))
+            p.fillRect(8, 0, 8, 8, QColor('#e2e4e8'))
+            p.fillRect(0, 8, 8, 8, QColor('#e2e4e8'))
+            p.fillRect(8, 8, 8, 8, QColor('#ffffff'))
+            p.end()
+            cls._checker = pix
+        return cls._checker
+
     def paintEvent(self, event):
         p = QPainter(self)
         p.scale(self.zoom, self.zoom)
+        p.drawTiledPixmap(QRect(0, 0, self.image.width(), self.image.height()), self.checker_pixmap())
         p.drawImage(QPoint(0, 0), self.image)
         if self.floating is not None:
             p.drawImage(self.selection.topLeft(), self.floating_image())
@@ -752,7 +771,19 @@ class Canvas(QWidget):
     def draw_stroke(self, a, b):
         p = QPainter(self.image)
         p.setRenderHint(QPainter.RenderHint.Antialiasing, self.antialias and self.tool != 'pencil')
-        color = self.secondary if self.tool == 'eraser' else self.active_color()
+        if self.tool == 'eraser':
+            if self.right_button or self.secondary.alpha() == 0:
+                color = QColor(0, 0, 0, 0)
+                p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+            elif self.secondary.alpha() < 255:
+                color = self.secondary
+                p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
+            else:
+                color = self.secondary
+        else:
+            color = self.active_color()
+            if color.alpha() == 0:
+                p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
         width = 1 if self.tool == 'pencil' else self.stroke_width
         if self.tool == 'eraser':
             width = max(4, width * 3)
@@ -864,7 +895,27 @@ class Canvas(QWidget):
         self.setCursor(cursor)
 
     def leaveEvent(self,event):
+        self.position.emit('')
         self.update_pointer();super().leaveEvent(event)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event):
+        win = self.window()
+        if hasattr(win, 'handle_drop_event'):
+            win.handle_drop_event(event)
+        else:
+            super().dropEvent(event)
 
     def mousePressEvent(self, event):
         if event.button() not in (Qt.MouseButton.LeftButton, Qt.MouseButton.RightButton):
@@ -896,6 +947,13 @@ class Canvas(QWidget):
         elif self.tool == 'magnifier':
             new = round(self.zoom * 100 * (.5 if self.right_button else 2))
             self.set_zoom(max(25, min(800, new)))
+            workspace = self.parentWidget().parentWidget() if (self.parentWidget() and hasattr(self.parentWidget(), 'parentWidget')) else None
+            if workspace and isinstance(workspace, QScrollArea):
+                vp = workspace.viewport()
+                tx = point.x() * self.zoom + 6 - (vp.width() / 2)
+                ty = point.y() * self.zoom + 6 - (vp.height() / 2)
+                workspace.horizontalScrollBar().setValue(round(tx))
+                workspace.verticalScrollBar().setValue(round(ty))
         elif self.tool == 'text':
             had_text=self.text_entry is not None
             self.commit_selection()
@@ -953,12 +1011,16 @@ class Canvas(QWidget):
             self.resize_drag = False
             if (w,h)!=self.original_size and w * h <= MAX_PIXELS:
                 self.resize_document(w, h, scale=False)
+        was_moving = self.moving
         self.dragging = False
         self.moving = False
         self.before = None
         self.update_pointer(event.position())
         self.selection_changed.emit()
-        self.update()
+        if was_moving:
+            self.modified()
+        else:
+            self.update()
 
     def commit_selection(self):
         self.commit_text()
@@ -994,9 +1056,15 @@ class Canvas(QWidget):
         self.snapshot()
         if self.floating is None:
             p = QPainter(self.image)
-            if self.selection_shape is not None:
-                p.translate(QPointF(self.selection.topLeft()));p.fillPath(self.selection_shape,self.secondary)
-            else:p.fillRect(self.selection, self.secondary)
+            if self.secondary.alpha() == 0:
+                p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                if self.selection_shape is not None:
+                    p.translate(QPointF(self.selection.topLeft()));p.fillPath(self.selection_shape, Qt.GlobalColor.transparent)
+                else:p.fillRect(self.selection, Qt.GlobalColor.transparent)
+            else:
+                if self.selection_shape is not None:
+                    p.translate(QPointF(self.selection.topLeft()));p.fillPath(self.selection_shape,self.secondary)
+                else:p.fillRect(self.selection, self.secondary)
             p.end()
         self.floating = None
         self.selection = QRect()
@@ -1048,14 +1116,24 @@ class Canvas(QWidget):
             self.snapshot()
             if self.selection_shape is None:
                 self.floating=self.image.copy(self.selection)
-                p=QPainter(self.image);p.fillRect(self.selection,self.secondary);p.end()
+                p=QPainter(self.image)
+                if self.secondary.alpha() == 0:
+                    p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                    p.fillRect(self.selection, Qt.GlobalColor.transparent)
+                else:p.fillRect(self.selection,self.secondary)
+                p.end()
             else:
                 piece=blank(self.selection.width(),self.selection.height(),Qt.GlobalColor.transparent)
                 p=QPainter(piece);p.setClipPath(self.selection_shape)
                 p.drawImage(QPoint(0,0),self.image,self.selection);p.end()
                 self.floating=piece
                 p=QPainter(self.image);p.translate(QPointF(self.selection.topLeft()))
-                p.fillPath(self.selection_shape,self.secondary);p.end()
+                if self.secondary.alpha() == 0:
+                    p.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+                    p.fillPath(self.selection_shape, Qt.GlobalColor.transparent)
+                else:p.fillPath(self.selection_shape,self.secondary)
+                p.end()
+            self.modified()
 
     def floating_image(self):
         # Transparent selection: pixels in Color 2 (background) are not carried along.
@@ -1139,6 +1217,43 @@ class Canvas(QWidget):
         return QCursor(Qt.CursorShape.CrossCursor)
 
     def keyPressEvent(self, event):
+        if event.matches(QKeySequence.StandardKey.Undo) or (event.key() == Qt.Key.Key_Z and event.modifiers() == Qt.KeyboardModifier.ControlModifier):
+            self.undo()
+            event.accept()
+            return
+        if event.matches(QKeySequence.StandardKey.Redo) or (event.key() == Qt.Key.Key_Y and event.modifiers() == Qt.KeyboardModifier.ControlModifier) or (event.key() == Qt.Key.Key_Z and event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)):
+            self.redo()
+            event.accept()
+            return
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            if event.key() == Qt.Key.Key_C:
+                self.copy()
+                event.accept()
+                return
+            elif event.key() == Qt.Key.Key_X:
+                self.cut()
+                event.accept()
+                return
+            elif event.key() == Qt.Key.Key_V:
+                win = self.window()
+                if hasattr(win, 'paste'): win.paste()
+                event.accept()
+                return
+            elif event.key() == Qt.Key.Key_A:
+                win = self.window()
+                if hasattr(win, 'select_all'): win.select_all()
+                event.accept()
+                return
+            elif event.key() in (Qt.Key.Key_Plus, Qt.Key.Key_Equal):
+                self.stroke_width = min(30, self.stroke_width + 1)
+                self.update_pointer()
+                event.accept()
+                return
+            elif event.key() == Qt.Key.Key_Minus:
+                self.stroke_width = max(1, self.stroke_width - 1)
+                self.update_pointer()
+                event.accept()
+                return
         arrows={Qt.Key.Key_Left:(-1,0),Qt.Key.Key_Right:(1,0),Qt.Key.Key_Up:(0,-1),Qt.Key.Key_Down:(0,1)}
         if event.key() in arrows and self.tool=='select' and not self.selection.isEmpty() and event.modifiers() in (Qt.KeyboardModifier.NoModifier,Qt.KeyboardModifier.ShiftModifier):
             self.lift_selection();dx,dy=arrows[event.key()];step=10 if event.modifiers() & Qt.KeyboardModifier.ShiftModifier else 1
@@ -1181,7 +1296,10 @@ class ColorButton(QToolButton):
         p.fillRect(2,2,34,34,QColor('white'))
         p.setPen(QColor('#8893a2'))
         p.drawRect(2,2,33,33)
-        p.fillRect(5,5,28,28,color)
+        c = QColor(color)
+        if c.alpha() < 255:
+            p.drawTiledPixmap(QRect(5, 5, 28, 28), Canvas.checker_pixmap())
+        p.fillRect(5,5,28,28,c)
         p.end()
         self.setIcon(QIcon(pixmap))
 
@@ -1274,8 +1392,48 @@ class Workspace(QScrollArea):
         try:
             x,y=text.replace(' px','').split(',')
             self.pointer=QPoint(int(x),int(y))
-        except ValueError:pass
+        except ValueError:
+            self.pointer=None
         self.update_rulers()
+
+    def wheelEvent(self, event):
+        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta != 0:
+                levels = [25, 50, 100, 200, 300, 400, 500, 600, 700, 800]
+                current = round(self.canvas.zoom * 100)
+                if delta > 0:
+                    candidates = [lvl for lvl in levels if lvl > current]
+                    new_zoom = candidates[0] if candidates else 800
+                else:
+                    candidates = [lvl for lvl in levels if lvl < current]
+                    new_zoom = candidates[-1] if candidates else 25
+                viewport_pos = event.position()
+                old_zoom = self.canvas.zoom
+                doc_x = (viewport_pos.x() + self.horizontalScrollBar().value() - 6) / old_zoom
+                doc_y = (viewport_pos.y() + self.verticalScrollBar().value() - 6) / old_zoom
+                self.canvas.set_zoom(new_zoom)
+                new_zoom_factor = self.canvas.zoom
+                new_scroll_x = doc_x * new_zoom_factor + 6 - viewport_pos.x()
+                new_scroll_y = doc_y * new_zoom_factor + 6 - viewport_pos.y()
+                self.horizontalScrollBar().setValue(round(new_scroll_x))
+                self.verticalScrollBar().setValue(round(new_scroll_y))
+                event.accept()
+                return
+        super().wheelEvent(event)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dropEvent(self, event):
+        win = self.window()
+        if hasattr(win, 'handle_drop_event'):
+            win.handle_drop_event(event)
+        else:
+            super().dropEvent(event)
 
     def show_rulers(self,show):
         self.rulers_visible=show
@@ -1577,8 +1735,11 @@ class ReferenceRibbonButton(QToolButton):
             elif self.text()!='Select':
                 p.fillRect(self.rect().adjusted(1,1,-1,-1),QColor(255,214,107,65))
                 p.setPen(QColor('#d9a33a'));p.drawRect(self.rect().adjusted(0,0,-1,-1))
-        if self.color is not None and self.color!=self.reference_color:
-            p.fillRect(self.color_rect,self.color)
+        if self.color is not None and (self.color!=self.reference_color or self.color.alpha()<255):
+            if self.color_rect is not None:
+                if self.color.alpha() < 255:
+                    p.drawTiledPixmap(self.color_rect, Canvas.checker_pixmap())
+                p.fillRect(self.color_rect,self.color)
         if self.isEnabled() and (self.underMouse() or self.isDown()):
             p.fillRect(self.rect().adjusted(1,1,-1,-1),QColor(255,230,161,55 if not self.isDown() else 90))
             p.setPen(QColor('#e9bf62'));p.drawRect(self.rect().adjusted(0,0,-1,-1))
@@ -1662,7 +1823,14 @@ class PaintWindow(QMainWindow):
         self.canvas.changed.connect(self.on_change)
         self.canvas.position.connect(lambda text:self.coordinates.setText(text) if hasattr(self,'coordinates') else None)
         self.canvas.picked.connect(self.set_color)
-        self.resize(1360,720);self.setMinimumSize(820,480)
+        settings = QSettings('ClassicPaint', 'ClassicPaint')
+        geo = settings.value('geometry')
+        if geo:
+            self.restoreGeometry(geo)
+        else:
+            self.resize(1360,720)
+        self.setMinimumSize(820,480)
+        self.setAcceptDrops(True)
         self.setStyleSheet("""
             QMainWindow,QWidget {font-family:'Segoe UI',Arial; font-size:12px; color:#263749;}
             QToolButton,QPushButton {padding:2px; border:1px solid transparent; border-radius:2px; background:transparent;}
@@ -1720,6 +1888,7 @@ class PaintWindow(QMainWindow):
         if shortcut is not None:
             if isinstance(shortcut,(list,tuple)):action.setShortcuts([QKeySequence(x) for x in shortcut])
             else:action.setShortcut(shortcut)
+            action.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
         self.addAction(action)
         self.actions[key] = action
         if menu is not None:
@@ -1732,10 +1901,13 @@ class PaintWindow(QMainWindow):
         edit = self.menuBar().addMenu('Edit')
         image = self.menuBar().addMenu('Image')
         self.action('new', 'New', self.new_file, QKeySequence.StandardKey.New, self.file_menu)
+        self.action('new_transparent', 'New (Transparent)', self.new_file_transparent, 'Ctrl+Shift+N', self.file_menu)
         self.action('open', 'Open…', self.open_file, QKeySequence.StandardKey.Open, self.file_menu)
         self.action('save', 'Save', self.save_file, QKeySequence.StandardKey.Save, self.file_menu)
         self.action('save_as', 'Save as…', lambda: self.save_file(True), QKeySequence.StandardKey.SaveAs, self.file_menu)
         self.action('print', 'Print…', self.print_image, QKeySequence.StandardKey.Print, self.file_menu)
+        self.recent_menu = self.file_menu.addMenu('Recent pictures')
+        self.update_recent_menu()
         self.file_menu.addSeparator()
         self.action('quit', 'Quit', self.close, QKeySequence.StandardKey.Quit, self.file_menu)
         for key, text, callback, shortcut in (
@@ -1756,7 +1928,8 @@ class PaintWindow(QMainWindow):
         self.action('flip_h', 'Flip horizontal', lambda: self.flip(True), 'Ctrl+Shift+H', image)
         self.action('flip_v', 'Flip vertical', lambda: self.flip(False), 'Ctrl+Shift+V', image)
         self.action('invert', 'Invert colors', self.invert, 'Ctrl+Shift+I', image)
-        self.action('clear', 'Clear image', lambda: self.canvas.set_image(blank(self.canvas.image.width(), self.canvas.image.height(), self.canvas.secondary)), 'Ctrl+Shift+N', image)
+        self.action('clear', 'Clear image', lambda: self.canvas.set_image(blank(self.canvas.image.width(), self.canvas.image.height(), self.canvas.secondary)), 'Ctrl+Shift+Delete', image)
+        self.action('clear_transparent', 'Clear to transparent', lambda: self.canvas.set_image(blank(self.canvas.image.width(), self.canvas.image.height(), QColor(0,0,0,0))), 'Ctrl+Alt+Delete', image)
         help_menu = self.menuBar().addMenu('Help')
         self.action('about', 'About Classic Paint', lambda: QMessageBox.about(self, 'Classic Paint',
             'Classic Paint 0.2\nIndependent Python raster editor inspired by Windows 7 Paint.\nPython code: MIT. Original Microsoft artwork is separately licensed.'), menu=help_menu)
@@ -1899,7 +2072,13 @@ class PaintWindow(QMainWindow):
             b.reference_color=home_reference().toImage().pixelColor(x+12,y+12)
             b.color=b.reference_color;b.color_rect=QRect(2,2,21,21)
             b.clicked.connect(lambda checked=False,b=b:self.set_color(b.color,self.active_color==2))
-            if i>=20:b.setEnabled(False);b.default_enabled=False;self.custom_swatches.append(b)
+            if i>=20:
+                if i==20:
+                    b.color=QColor(0,0,0,0);b.reference_color=None;b.default_enabled=True;b.setEnabled(True)
+                    b.setToolTip('Transparent (Alpha 0)')
+                else:
+                    b.setEnabled(False);b.default_enabled=False
+                self.custom_swatches.append(b)
         button('colors',(1140,0,50,82),'Edit colors',lambda:self.choose_color(self.active_color==2))
         self.set_color(self.canvas.primary,False);self.set_color(self.canvas.secondary,True)
         return widget
@@ -2109,12 +2288,13 @@ class PaintWindow(QMainWindow):
 
 
     def choose_color(self,secondary):
-        color=QColorDialog.getColor(self.canvas.secondary if secondary else self.canvas.primary,self,'Edit colors')
+        color=QColorDialog.getColor(self.canvas.secondary if secondary else self.canvas.primary,self,'Edit colors', QColorDialog.ColorDialogOption.ShowAlphaChannel)
         if color.isValid():
             self.set_color(color,secondary)
-            index=next((i for i,b in enumerate(self.custom_swatches) if not b.isEnabled()),0)
-            b=self.custom_swatches[index];b.set_color(color);b.default_enabled=True;b.setEnabled(True);b.setToolTip(color.name())
-            b.setStyleSheet(f'background:{color.name()};border:1px solid #a6b1bf;')
+            index=next((i for i,b in enumerate(self.custom_swatches) if not b.isEnabled()),1)
+            b=self.custom_swatches[index];b.set_color(color);b.default_enabled=True;b.setEnabled(True)
+            tip = color.name() if color.alpha() == 255 else f'{color.name()} (alpha: {color.alpha()})'
+            b.setToolTip(tip)
 
 
     def paste(self):
@@ -2150,7 +2330,7 @@ class PaintWindow(QMainWindow):
 
     def update_title(self):
         if hasattr(self,'actions'):
-            self.actions['undo'].setEnabled(bool(self.canvas.undo_stack) or self.canvas.text_entry is not None)
+            self.actions['undo'].setEnabled(bool(self.canvas.undo_stack) or self.canvas.text_entry is not None or self.canvas.floating is not None)
             self.actions['redo'].setEnabled(bool(self.canvas.redo_stack) or self.canvas.text_entry is not None)
         title = self.path.name if self.path else 'Untitled'
         self.setWindowTitle(f'{title}{" *" if self.dirty else ""} — Classic Paint')
@@ -2184,30 +2364,119 @@ class PaintWindow(QMainWindow):
         self.path, self.dirty = None, False
         self.update_title()
 
+    def new_file_transparent(self):
+        if not self.confirm_unsaved():
+            return
+        self.canvas.set_image(blank(354, 408, QColor(0, 0, 0, 0)), remember=False)
+        self.canvas.undo_stack.clear()
+        self.canvas.redo_stack.clear()
+        self.path, self.dirty = None, False
+        self.update_title()
+
+    def get_recent_files(self):
+        settings = QSettings('ClassicPaint', 'ClassicPaint')
+        val = settings.value('recent_files', [])
+        if isinstance(val, str): val = [val] if val else []
+        elif not isinstance(val, list): val = []
+        return [f for f in val if Path(f).is_file()]
+
+    def add_recent_file(self, filepath):
+        settings = QSettings('ClassicPaint', 'ClassicPaint')
+        val = settings.value('recent_files', [])
+        if isinstance(val, str): val = [val] if val else []
+        elif not isinstance(val, list): val = []
+        recents = [f for f in val if f != filepath and Path(f).is_file()]
+        recents.insert(0, str(filepath))
+        settings.setValue('recent_files', recents[:10])
+        self.update_recent_menu()
+
+    def update_recent_menu(self):
+        if not hasattr(self, 'recent_menu'):
+            return
+        self.recent_menu.clear()
+        recents = self.get_recent_files()
+        if not recents:
+            empty = self.recent_menu.addAction('No recent pictures')
+            empty.setEnabled(False)
+            return
+        for i, f in enumerate(recents, 1):
+            name = Path(f).name
+            act = self.recent_menu.addAction(f'&{i} {name}')
+            act.setToolTip(f)
+            act.triggered.connect(lambda checked=False, p=f: self.open_recent_file(p))
+        self.recent_menu.addSeparator()
+        clear_act = self.recent_menu.addAction('Clear list')
+        clear_act.triggered.connect(self.clear_recent_files)
+
+    def open_recent_file(self, filepath):
+        if self.confirm_unsaved():
+            self.load_file_from_path(filepath)
+
+    def clear_recent_files(self):
+        settings = QSettings('ClassicPaint', 'ClassicPaint')
+        settings.setValue('recent_files', [])
+        self.update_recent_menu()
+
+    def load_file_from_path(self, path):
+        path = Path(path).resolve()
+        if not path.is_file():
+            return False
+        reader = QImageReader(str(path))
+        reader.setAutoTransform(True)
+        size = reader.size()
+        if size.isValid() and size.width() * size.height() > MAX_PIXELS:
+            QMessageBox.warning(self, 'Image too large', 'Maximum image size is 32 megapixels.')
+            return False
+        image = reader.read()
+        if image.isNull():
+            QMessageBox.warning(self, 'Cannot open', reader.errorString() or 'Could not read image.')
+            return False
+        if image.width() * image.height() > MAX_PIXELS:
+            QMessageBox.warning(self, 'Image too large', 'Maximum image size is 32 megapixels.')
+            return False
+        self.canvas.set_image(image, remember=False)
+        self.canvas.undo_stack.clear()
+        self.canvas.redo_stack.clear()
+        self.path, self.dirty = path, False
+        self.update_title()
+        self.add_recent_file(str(path))
+        return True
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event):
+        self.handle_drop_event(event)
+
+    def handle_drop_event(self, event):
+        if not event.mimeData().hasUrls():
+            return
+        for url in event.mimeData().urls():
+            if url.isLocalFile():
+                local_path = url.toLocalFile()
+                ext = Path(local_path).suffix.lower()
+                if ext in ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tif', '.tiff', '.webp'):
+                    if self.confirm_unsaved():
+                        self.load_file_from_path(local_path)
+                    event.acceptProposedAction()
+                    return
+
     def open_file(self):
         if not self.confirm_unsaved():
             return
         path, _ = QFileDialog.getOpenFileName(self, 'Open image', '', 'Images (*.png *.jpg *.jpeg *.bmp *.gif *.tif *.tiff *.webp);;All files (*)')
         if not path:
             return
-        reader = QImageReader(path)
-        reader.setAutoTransform(True)
-        size = reader.size()
-        if size.isValid() and size.width() * size.height() > MAX_PIXELS:
-            QMessageBox.warning(self, 'Image too large', 'Maximum image size is 32 megapixels.')
-            return
-        image = reader.read()
-        if image.isNull():
-            QMessageBox.warning(self, 'Cannot open', reader.errorString())
-            return
-        if image.width() * image.height() > MAX_PIXELS:
-            QMessageBox.warning(self, 'Image too large', 'Maximum image size is 32 megapixels.')
-            return
-        self.canvas.set_image(image, remember=False)
-        self.canvas.undo_stack.clear()
-        self.canvas.redo_stack.clear()
-        self.path, self.dirty = Path(path), False
-        self.update_title()
+        self.load_file_from_path(path)
 
     def save_file(self, save_as=False):
         path = self.path
@@ -2235,6 +2504,7 @@ class PaintWindow(QMainWindow):
             return False
         self.path, self.dirty = path, False
         self.update_title()
+        self.add_recent_file(str(path))
         return True
 
     def resize_image(self, scale=True):
@@ -2287,8 +2557,40 @@ class PaintWindow(QMainWindow):
             p.drawImage(QRect(rect.topLeft(), size), image)
             p.end()
 
+    def keyPressEvent(self, event):
+        if event.matches(QKeySequence.StandardKey.Undo) or (event.key() == Qt.Key.Key_Z and event.modifiers() == Qt.KeyboardModifier.ControlModifier):
+            if hasattr(self, 'actions') and self.actions.get('undo') and self.actions['undo'].isEnabled():
+                self.canvas.undo()
+                event.accept()
+                return
+        if event.matches(QKeySequence.StandardKey.Redo) or (event.key() == Qt.Key.Key_Y and event.modifiers() == Qt.KeyboardModifier.ControlModifier) or (event.key() == Qt.Key.Key_Z and event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)):
+            if hasattr(self, 'actions') and self.actions.get('redo') and self.actions['redo'].isEnabled():
+                self.canvas.redo()
+                event.accept()
+                return
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            if event.key() == Qt.Key.Key_C:
+                self.canvas.copy()
+                event.accept()
+                return
+            elif event.key() == Qt.Key.Key_X:
+                self.canvas.cut()
+                event.accept()
+                return
+            elif event.key() == Qt.Key.Key_V:
+                self.paste()
+                event.accept()
+                return
+            elif event.key() == Qt.Key.Key_A:
+                self.select_all()
+                event.accept()
+                return
+        super().keyPressEvent(event)
+
     def closeEvent(self, event):
         if self.confirm_unsaved():
+            settings = QSettings('ClassicPaint', 'ClassicPaint')
+            settings.setValue('geometry', self.saveGeometry())
             event.accept()
         else:
             event.ignore()
@@ -2303,14 +2605,7 @@ def main():
     window.show()
     # "Open with" / command line: classic-paint picture.png
     if len(sys.argv) > 1 and Path(sys.argv[1]).is_file():
-        reader = QImageReader(sys.argv[1])
-        reader.setAutoTransform(True)
-        image = reader.read()
-        if not image.isNull() and image.width() * image.height() <= MAX_PIXELS:
-            window.canvas.set_image(image, remember=False)
-            window.canvas.undo_stack.clear()
-            window.path, window.dirty = Path(sys.argv[1]).resolve(), False
-            window.update_title()
+        window.load_file_from_path(sys.argv[1])
     sys.exit(app.exec())
 
 
